@@ -6,10 +6,11 @@ import java.util.List;
 
 public interface UserRepository {
 
-    public void findByID(Long userID);
+    User findByID(Long userID);
 
-    public User save(User entity);
+    User findByName(String name);
 
-    public void saveAll(List<User> entities);
+    User save(User entity);
 
+    void saveAll(List<User> entities);
 }

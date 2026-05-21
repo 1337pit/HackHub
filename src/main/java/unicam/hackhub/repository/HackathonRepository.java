@@ -6,7 +6,7 @@ import java.util.List;
 
 public interface HackathonRepository {
 
-    public void findByName(String name);
+    public Hackathon findByID(Long id);
 
     public Hackathon save(Hackathon entity);
 

@@ -1,14 +1,20 @@
 package unicam.hackhub.repository;
 
 import unicam.hackhub.model.Invite;
+import unicam.hackhub.model.Team;
+import unicam.hackhub.model.User;
 
 import java.util.List;
 
 public interface InviteRepository {
 
-    public void findByID(Long inviteID);
+    Invite findByID(Long inviteID);
 
-    public Invite save(Invite entity);
+    List<Invite> findByUser(User user);
 
-    public void saveAll(List<Invite> entities);
+    List<Invite> findByTeam(Team team);
+
+    Invite save(Invite entity);
+
+    void saveAll(List<Invite> entities);
 }

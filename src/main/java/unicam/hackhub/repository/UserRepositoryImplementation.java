@@ -1,19 +1,39 @@
 package unicam.hackhub.repository;
 
-import org.springframework.boot.webmvc.autoconfigure.WebMvcProperties;
 import unicam.hackhub.model.User;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
-public class UserRepositoryImplementation {
+public class UserRepositoryImplementation implements UserRepository {
 
-    private Set<User> users;
+    private final List<User> users = new ArrayList<>();
 
-    public void findByID(Long userID) {}
+    @Override
+    public User findByID(Long userID) {
+        return users.stream()
+                .filter(u -> u.getId().equals(userID))
+                .findFirst()
+                .orElse(null);
+    }
 
-    public User save(User entity) {return null;}
+    @Override
+    public User findByName(String name) {
+        return users.stream()
+                .filter(u -> u.getName().equals(name))
+                .findFirst()
+                .orElse(null);
+    }
 
-    public void saveAll(List<User> entities) {}
+    @Override
+    public User save(User entity) {
+        users.removeIf(u -> u.getId().equals(entity.getId()));
+        users.add(entity);
+        return entity;
+    }
 
+    @Override
+    public void saveAll(List<User> entities) {
+        entities.forEach(this::save);
+    }
 }
