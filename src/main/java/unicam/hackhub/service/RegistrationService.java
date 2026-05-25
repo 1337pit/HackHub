@@ -31,30 +31,53 @@ public class RegistrationService {
         this.hackathonService = hackathonService;
     }
 
+    /**
+     * Registra un team seguendo il flusso del sequence diagram:
+     * 1. Recupera l'utente
+     * 2. Verifica che l'utente non faccia parte di nessun team
+     * 3. Prende il team dell'utente e l'hackathon
+     * 4. Verifica che l'hackathon sia aperto e che la team size non superi il limite
+     * 5. Crea la registrazione
+     * 6. Verifica che il team non sia già registrato
+     * 7. Salva la registrazione
+     */
     public Registration registerTeam(Long hackathonID, Long userID) {
+
+        // 1. Verifica che i parametri passati non siano nulli
         if(hackathonID == null || userID == null) {
             throw new IllegalArgumentException("hackathonID and userID cannot be null");
         }
 
+        // 2. Recupera l'utente
         User user = userRepository.findByID(userID);
         userService.checkEligibility(user);
 
+        // 3. Verifica che l'utente non faccia parte di nessun team
         if (!(user.hasTeam()))
             throw new IllegalArgumentException("User has no team");
 
+        // 4. Prende il team dell'utente
         Team team = user.getCurrentTeam();
 
+        // 5. Prende l'hackathon
         Hackathon hackathon = hackathonRepository.findByID(hackathonID);
 
+        // 6. Verifica che l'hackathon sia aperto
         hackathonService.checkHackathonAvailability(hackathon);
 
+        // 7. Verifica che la team size non superi il limite
         hackathonService.checkTeamSize(team, hackathon);
 
+        // 8. Crea la registrazione
         Registration registration = registrationRepository.findByRegistration(team, hackathon);
 
+        // 9. Verifca che il team non sia già registrato nell'hackathon
         hackathonService.checkTeamAlreadyRegistered(registration);
 
-        return registrationRepository.save(registration);
+        // 10. Salva la registrazione
+        registrationRepository.save(registration);
+
+        return registration;
     }
 
     public Registration getRegistration(Long teamID) {

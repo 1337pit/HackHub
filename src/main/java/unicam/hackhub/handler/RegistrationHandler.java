@@ -14,6 +14,14 @@ public class RegistrationHandler {
         this.registrationService = registrationService;
     }
 
+    /**
+     * Gestisce la richiesta di registrazione di un team ad un hackathon.
+     * Corrisponde al metodo registerTeamToHackathon nel sequence diagram.
+     *
+     * @param hackathonID     ID dell'hackathon
+     * @param userID          ID dell'utente
+     * @return La registrazione, o null in caso di errore
+     */
     public Registration registerTeam(Long hackathonID, Long userID) {
         try {
             return registrationService.registerTeam(hackathonID, userID);

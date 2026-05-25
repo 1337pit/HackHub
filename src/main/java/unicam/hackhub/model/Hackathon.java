@@ -27,11 +27,12 @@ public class Hackathon implements HackathonState {
         this.nameHackathon = nameHackathon;
     }
 
-    public Hackathon(Long id, String name, LocalDate registrationDate, LocalDate startDate,
+    public Hackathon(String name, String rulebook, LocalDate registrationDeadline, LocalDate startDate,
                      LocalDate endDate, String location, String prize, HackathonState state,
                      int maxTeamSize, Organizer organizer, Judge judge, Mentor[] mentor) {
-        this.id = id;
         this.nameHackathon = name;
+        this.rulebook = rulebook;
+        this.registrationDeadline = registrationDeadline;
         this.startDate = startDate;
         this.endDate = endDate;
         this.location = location;

@@ -7,4 +7,6 @@ public interface StaffMember {
     String email = null;
     Hackathon hackathon = null;
 
+    Long getId();
+
 }

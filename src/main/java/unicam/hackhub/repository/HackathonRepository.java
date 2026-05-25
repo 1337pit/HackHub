@@ -8,6 +8,8 @@ public interface HackathonRepository {
 
     public Hackathon findByID(Long id);
 
+    public Hackathon findByName(String name);
+
     public Hackathon save(Hackathon entity);
 
     public void saveAll(List<Hackathon> entities);
