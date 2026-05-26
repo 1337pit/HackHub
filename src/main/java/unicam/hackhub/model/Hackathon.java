@@ -46,12 +46,20 @@ public class Hackathon implements HackathonState {
 
     @Override
     public void onRegisterTeam() {
-        // TODO
+        if (state == null) {
+            throw new IllegalStateException("Hackathon state is not defined");
+        }
+
+        state.onRegisterTeam();
     }
 
     @Override
     public void onUpload() {
-        // TODO
+        if (state == null) {
+            throw new IllegalStateException("Hackathon state is not defined");
+        }
+
+        state.onUpload();
     }
 
     public boolean isRegistrationOpen() {

@@ -3,12 +3,13 @@ package unicam.hackhub.repository;
 import unicam.hackhub.model.Hackathon;
 import unicam.hackhub.model.Team;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 public class HackathonRepositoryImplementation implements HackathonRepository {
 
-    private Set<Hackathon> hackathons;
+    private final Set<Hackathon> hackathons = new HashSet<Hackathon>();
 
     @Override
     public Hackathon findByID(Long hackathonID) {

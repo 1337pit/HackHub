@@ -15,6 +15,11 @@ public class HackathonService {
         this.hackathonRepository = hackathonRepository;
     }
 
+    public HackathonService(HackathonRepository hackathonRepository, StaffMemberRepository staffMemberRepository) {
+        this.hackathonRepository = hackathonRepository;
+        this.staffMemberRepository = staffMemberRepository;
+    }
+
     /**
      * Crea un hackathon seguendo il flusso del sequence diagram:
      * 1. Verifica che il nome non sia già usato
@@ -27,18 +32,22 @@ public class HackathonService {
                                      String prize, HackathonState state, int maxTeamSize, Organizer organizer,
                                      Long mentorID, Long judgeID){
 
-        // 1. Verifica che il nome dell'hackathon non sia già in uso
-        existsHackathonByName(name);
-
-        // 2. Verifica che i parametri passati siano corretti
+        // 1. Verifica che i parametri passati siano corretti
         validateDates(name, rulebook, registrationDeadline, startDate, endDate, location, prize,
-                        state, maxTeamSize, organizer, mentorID, judgeID);
+                state, maxTeamSize, organizer, mentorID, judgeID);
+
+        // 2. Verifica che il nome dell'hackathon non sia già in uso
+        existsHackathonByName(name);
 
         // 3. Prende il mentore
         Mentor[] mentor = staffMemberRepository.getMentor(mentorID);
 
         // 4. Prende il giudice
         Judge judge = staffMemberRepository.getJudge(judgeID);
+
+        if(mentor == null || mentor.length == 0 || judge == null){
+            throw new IllegalArgumentException("Staff member not found");
+        }
 
         // 5. Crea l'hackathon
         Hackathon hackathon = new Hackathon(name, rulebook, registrationDeadline, startDate, endDate,
@@ -75,8 +84,20 @@ public class HackathonService {
                               Long mentorID, Long judgeID){
         if(name == null || rulebook == null || registrationDeadline == null || startDate == null
                 || endDate == null || location == null || prize == null || state == null
-                || maxTeamSize>0 || organizer == null || mentorID == null || judgeID == null){
+                || maxTeamSize <= 0 || organizer == null || mentorID == null || judgeID == null){
             throw new IllegalArgumentException("Wrong dates selected");
+        }
+
+        if(registrationDeadline.isAfter(startDate)){
+            throw new IllegalArgumentException("Registration deadline cannot be after start date");
+        }
+
+        if(startDate.isAfter(endDate)){
+            throw new IllegalArgumentException("Start date cannot be after end date");
+        }
+
+        if(staffMemberRepository == null){
+            throw new IllegalArgumentException("Staff member repository is not defined");
         }
 
     }

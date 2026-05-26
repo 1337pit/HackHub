@@ -5,12 +5,13 @@ import unicam.hackhub.model.Judge;
 import unicam.hackhub.model.Mentor;
 import unicam.hackhub.model.StaffMember;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 public class StaffMemberRepositoryImplementation implements StaffMemberRepository {
 
-    private Set<StaffMember> staffMembers;
+    private final Set<StaffMember> staffMembers = new HashSet<StaffMember>();
 
     public Mentor[] getMentor(Long mentorID) {
         return staffMembers.stream()
