@@ -6,7 +6,7 @@ import java.util.List;
 
 public interface SubmissionRepository {
 
-    public void findByID(Long submissionID);
+    public Submission findByID(Long submissionID);
 
     public Submission save(Submission entity);
 
