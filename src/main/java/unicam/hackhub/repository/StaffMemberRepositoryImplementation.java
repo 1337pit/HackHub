@@ -1,9 +1,6 @@
 package unicam.hackhub.repository;
 
-import unicam.hackhub.model.Hackathon;
-import unicam.hackhub.model.Judge;
-import unicam.hackhub.model.Mentor;
-import unicam.hackhub.model.StaffMember;
+import unicam.hackhub.model.*;
 
 import java.util.HashSet;
 import java.util.List;
@@ -13,14 +10,14 @@ public class StaffMemberRepositoryImplementation implements StaffMemberRepositor
 
     private final Set<StaffMember> staffMembers = new HashSet<StaffMember>();
 
-    public Mentor[] getMentor(Long mentorID) {
-        return staffMembers.stream()
-                .filter(s -> s instanceof Mentor)
-                .map(s -> (Mentor) s)
-                .filter(m -> m.getId().equals(mentorID))
-                .findFirst()
-                .map(mentor -> new Mentor[]{mentor})
-                .orElse(null);
+    @Override
+    public List<Mentor> getMentor(Long mentorID) {
+        for (StaffMember s : staffMembers) {
+            if (s instanceof Mentor && s.getId().equals(mentorID)) {
+                return List.of((Mentor) s);
+            }
+        }
+        return null;
     }
 
     @Override
@@ -53,6 +50,15 @@ public class StaffMemberRepositoryImplementation implements StaffMemberRepositor
             staffMembers.add(staffMember);
         }
         System.out.println("Staff members saved");
+    }
+
+    @Override
+    public StaffMember getStaff(User user) {
+        return staffMembers.stream()
+                .filter(s -> s instanceof Mentor || s instanceof Judge)
+                .filter(s -> s.getId().equals(user.getId()))
+                .findFirst()
+                .orElse(null);
     }
 
 }

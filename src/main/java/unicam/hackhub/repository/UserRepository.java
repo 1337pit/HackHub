@@ -10,6 +10,8 @@ public interface UserRepository {
 
     User findByName(String name);
 
+    User findByEmail(String email);
+
     User save(User entity);
 
     void saveAll(List<User> entities);

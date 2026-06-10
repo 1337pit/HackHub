@@ -44,9 +44,16 @@ public class HackathonHandler {
         }
     }
 
-    public void addMentor(Long mentorID) {
+    /**
+     * Gestisce la richiesta di aggiungi mentore.
+     * Corrisponde al metodo addMentor nel sequence diagram.
+     * @param email        Email dell'utente
+     * @param hackathonID  Id dell'hackathon
+     * @return Il mentore aggiunto, o null in caso di errore.
+     */
+    public void addMentor(String email, Long hackathonID) {
         try {
-            hackathonService.addMentor(mentorID);
+            hackathonService.addMentor(email, hackathonID);
         } catch (IllegalArgumentException e) {
             System.err.println("addMentor error: " + e.getMessage());
         }

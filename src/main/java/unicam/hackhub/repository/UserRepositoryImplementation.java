@@ -26,6 +26,14 @@ public class UserRepositoryImplementation implements UserRepository {
     }
 
     @Override
+    public User findByEmail(String email) {
+        return users.stream()
+                .filter(u -> u.getName().equals(email))
+                .findFirst()
+                .orElse(null);
+    }
+
+    @Override
     public User save(User entity) {
         users.removeIf(u -> u.getId().equals(entity.getId()));
         users.add(entity);

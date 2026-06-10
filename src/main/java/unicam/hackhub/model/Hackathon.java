@@ -1,6 +1,8 @@
 package unicam.hackhub.model;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Hackathon implements HackathonState {
 
@@ -16,7 +18,7 @@ public class Hackathon implements HackathonState {
     private int maxTeamSize;
     private Organizer organizer;
     private Judge judge;
-    private Mentor[] mentor;
+    private List<Mentor> mentor = new ArrayList<>();
 
     public Hackathon() {
 
@@ -29,7 +31,7 @@ public class Hackathon implements HackathonState {
 
     public Hackathon(String name, String rulebook, LocalDate registrationDeadline, LocalDate startDate,
                      LocalDate endDate, String location, String prize, HackathonState state,
-                     int maxTeamSize, Organizer organizer, Judge judge, Mentor[] mentor) {
+                     int maxTeamSize, Organizer organizer, Judge judge, List<Mentor> mentor) {
         this.nameHackathon = name;
         this.rulebook = rulebook;
         this.registrationDeadline = registrationDeadline;
@@ -68,6 +70,14 @@ public class Hackathon implements HackathonState {
         }
 
         return !LocalDate.now().isAfter(registrationDeadline);
+    }
+
+    public Mentor addMentor(Mentor mentor) {
+        if (mentor == null) {
+            throw new NullPointerException("mentor cannot be null");
+        }
+        this.mentor.add(mentor);
+        return mentor;
     }
 
     public Long getId() {
@@ -116,7 +126,7 @@ public class Hackathon implements HackathonState {
         return judge;
     }
 
-    public Mentor[] getMentor() {
+    public List<Mentor> getMentor() {
         return mentor;
     }
 
@@ -166,7 +176,7 @@ public class Hackathon implements HackathonState {
         this.judge = judge;
     }
 
-    public void setMentor(Mentor[] mentor) {
+    public void setMentor(List<Mentor> mentor) {
         this.mentor = mentor;
     }
 

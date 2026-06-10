@@ -3,13 +3,13 @@ package unicam.hackhub.repository;
 import unicam.hackhub.model.Judge;
 import unicam.hackhub.model.Mentor;
 import unicam.hackhub.model.StaffMember;
+import unicam.hackhub.model.User;
 
-import java.lang.reflect.Member;
 import java.util.List;
 
 public interface StaffMemberRepository {
 
-    public Mentor[] getMentor(Long mentorID);
+    public List<Mentor> getMentor(Long mentorID);
 
     public Judge getJudge(Long judgeID);
 
@@ -19,4 +19,5 @@ public interface StaffMemberRepository {
 
     public void saveAll(List<StaffMember> entities);
 
+    public StaffMember getStaff(User user);
 }

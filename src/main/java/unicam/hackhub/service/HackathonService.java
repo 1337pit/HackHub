@@ -3,21 +3,23 @@ package unicam.hackhub.service;
 import unicam.hackhub.model.*;
 import unicam.hackhub.repository.HackathonRepository;
 import unicam.hackhub.repository.StaffMemberRepository;
+import unicam.hackhub.repository.UserRepository;
 
 import java.time.LocalDate;
+import java.util.List;
 
 public class HackathonService {
 
     private HackathonRepository hackathonRepository;
     private StaffMemberRepository staffMemberRepository;
+    private UserRepository userRepository;
 
-    public HackathonService(HackathonRepository hackathonRepository) {
-        this.hackathonRepository = hackathonRepository;
-    }
 
-    public HackathonService(HackathonRepository hackathonRepository, StaffMemberRepository staffMemberRepository) {
+    public HackathonService(HackathonRepository hackathonRepository, StaffMemberRepository staffMemberRepository,
+                            UserRepository userRepository) {
         this.hackathonRepository = hackathonRepository;
         this.staffMemberRepository = staffMemberRepository;
+        this.userRepository = userRepository;
     }
 
     /**
@@ -40,12 +42,12 @@ public class HackathonService {
         existsHackathonByName(name);
 
         // 3. Prende il mentore
-        Mentor[] mentor = staffMemberRepository.getMentor(mentorID);
+        List<Mentor> mentor = staffMemberRepository.getMentor(mentorID);
 
         // 4. Prende il giudice
         Judge judge = staffMemberRepository.getJudge(judgeID);
 
-        if(mentor == null || mentor.length == 0 || judge == null){
+        if(mentor == null || mentor.isEmpty() || judge == null){
             throw new IllegalArgumentException("Staff member not found");
         }
 
@@ -59,8 +61,44 @@ public class HackathonService {
         return hackathon;
     }
 
-    public void addMentor(Long mentorID) {
+    /**
+     * Aggiunge un Mentore seguendo il flusso del sequence diagram:
+     * 1. Verifica che l'utente esiste
+     * 2. Verifica che l'utente non sia già Mentore o Giudice
+     * 3. Associa l'utente come Mentore all'hackathon corrente
+     * 4. Salva il Mentore
+     */
+    public void addMentor(String email, Long hackathonID) {
 
+        // 1. Ritorna l'hackathon con l'hackathonID passato
+        Hackathon hackathon = hackathonRepository.findByID(hackathonID);
+
+        // 2. Ritorna l'utente con l'email passata
+        User user = userRepository.findByEmail(email);
+
+        // 3. Verifica che l'utente esiste
+        if (user == null) {
+            throw new IllegalArgumentException("User not found");
+        }
+
+        // 4. Verifica che l'utente non sia già Mentore o Giudice
+        StaffMember staffMember = staffMemberRepository.getStaff(user);
+        if (staffMember instanceof Mentor) {
+             throw new IllegalArgumentException("User already Mentor");
+        }
+        if (staffMember instanceof Judge) {
+            throw new IllegalArgumentException("User already Judge");
+        }
+
+        // 5. Associa l'utente come Mentore all'hackathon corrente
+        Mentor mentor = new Mentor(user.getId(), user.getName(), email, hackathon);
+        hackathon.addMentor(mentor);
+
+        // 6. Salva il Mentore
+        staffMemberRepository.save(mentor);
+
+        // 7. Mostra notifica di successo
+        System.out.println("Mentor added succesfully");
     }
 
     public void declareWinner(Team team){

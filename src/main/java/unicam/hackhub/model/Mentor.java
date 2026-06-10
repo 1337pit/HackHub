@@ -11,9 +11,11 @@ public class Mentor implements StaffMember {
 
     }
 
-    public Mentor(Long id, String name) {
+    public Mentor(Long id, String name, String email,  Hackathon hackathon) {
         this.id = id;
         this.name = name;
+        this.email = email;
+        this.hackathon = hackathon;
     }
 
     public void proposeCall() {
