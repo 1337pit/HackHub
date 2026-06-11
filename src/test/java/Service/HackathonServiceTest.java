@@ -183,8 +183,9 @@ public class HackathonServiceTest {
     void addMentor_Success() {
         // Create an existing Hackathon context
         Hackathon hackathon = new Hackathon("Hackathon 1", "Rules", LocalDate.now(), LocalDate.now().plusDays(1), LocalDate.now().plusDays(2), "Loc", "Prize", new RegistrationState(), 5, organizer, new Judge(3L, "J"), Collections.emptyList());
+        hackathon.setId(100L);
         hackathonRepository.save(hackathon);
-        Long hackathonId = hackathon.getId(); // Assuming ID generation or setup logic handles this
+        Long hackathonId = hackathon.getId();
 
         // Setup a non-staff user
         User user = new User(10L, "John Doe", "john@example.com");
@@ -196,6 +197,7 @@ public class HackathonServiceTest {
     @Test
     void addMentor_UserNotFound_ThrowsException() {
         Hackathon hackathon = new Hackathon("Hackathon 2", "Rules", LocalDate.now(), LocalDate.now().plusDays(1), LocalDate.now().plusDays(2), "Loc", "Prize", new RegistrationState(), 5, organizer, new Judge(3L, "J"), Collections.emptyList());
+        hackathon.setId(101L);
         hackathonRepository.save(hackathon);
 
         assertThrows(IllegalArgumentException.class, () ->
@@ -206,6 +208,7 @@ public class HackathonServiceTest {
     @Test
     void addMentor_UserAlreadyMentor_ThrowsException() {
         Hackathon hackathon = new Hackathon("Hackathon 3", "Rules", LocalDate.now(), LocalDate.now().plusDays(1), LocalDate.now().plusDays(2), "Loc", "Prize", new RegistrationState(), 5, organizer, new Judge(3L, "J"), Collections.emptyList());
+        hackathon.setId(102L);
         hackathonRepository.save(hackathon);
 
         User user = new User(11L, "Existing Mentor", "mentor@example.com");
@@ -230,7 +233,15 @@ public class HackathonServiceTest {
         hackathon.setMaxTeamSize(4);
 
         Team overSizedTeam = new Team();
-        overSizedTeam.getSize(); // Explicitly bigger than 4
+
+        ArrayList<User> members = new ArrayList<>();
+        members.add(new User(1L, "User 1", "user1@example.com"));
+        members.add(new User(2L, "User 2", "user2@example.com"));
+        members.add(new User(3L, "User 3", "user3@example.com"));
+        members.add(new User(4L, "User 4", "user4@example.com"));
+        members.add(new User(5L, "User 5", "user5@example.com"));
+
+        overSizedTeam.setMembers(members);
 
         assertThrows(IllegalArgumentException.class, () ->
                 hackathonService.checkTeamSize(overSizedTeam, hackathon)

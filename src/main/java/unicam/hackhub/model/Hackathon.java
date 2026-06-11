@@ -42,8 +42,13 @@ public class Hackathon implements HackathonState {
         this.state = state;
         this.maxTeamSize = maxTeamSize;
         this.organizer = organizer;
-        this.mentor = mentor;
         this.judge = judge;
+
+        if (mentor == null) {
+            this.mentor = new ArrayList<>();
+        } else {
+            this.mentor = new ArrayList<>(mentor);
+        }
     }
 
     @Override
@@ -177,7 +182,10 @@ public class Hackathon implements HackathonState {
     }
 
     public void setMentor(List<Mentor> mentor) {
-        this.mentor = mentor;
+        if (mentor == null) {
+            this.mentor = new ArrayList<>();
+        } else {
+            this.mentor = new ArrayList<>(mentor);
+        }
     }
-
 }

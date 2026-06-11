@@ -88,25 +88,27 @@ public class HackathonHandlerTest {
     @Test
     void addMentor_Success() {
         // Arrange
-        Long mentorId = 10L;
-        doNothing().when(hackathonService).addMentor(mentorId);
+        String email = "mentor@example.com";
+        Long hackathonID = 1L;
+        doNothing().when(hackathonService).addMentor(email, hackathonID);
 
         // Act
-        hackathonHandler.addMentor(mentorId);
+        hackathonHandler.addMentor(email, hackathonID);
 
         // Assert
-        verify(hackathonService, times(1)).addMentor(mentorId);
+        verify(hackathonService, times(1)).addMentor(email, hackathonID);
     }
 
     @Test
     void addMentor_Exception_Handled() {
         // Arrange
-        Long mentorId = 10L;
-        doThrow(new IllegalArgumentException("Mentore non trovato")).when(hackathonService).addMentor(mentorId);
+        String email = "mentor@example.com";
+        Long hackathonID = 1L;
+        doThrow(new IllegalArgumentException("Mentore non trovato")).when(hackathonService).addMentor(email, hackathonID);
 
         // Act & Assert (Non deve lanciare eccezioni perché l'handler la cattura internamente)
-        assertDoesNotThrow(() -> hackathonHandler.addMentor(mentorId));
-        verify(hackathonService, times(1)).addMentor(mentorId);
+        assertDoesNotThrow(() -> hackathonHandler.addMentor(email, hackathonID));
+        verify(hackathonService, times(1)).addMentor(email, hackathonID);
     }
 
     // --- TEST PER declareWinner ---

@@ -28,7 +28,7 @@ public class UserRepositoryImplementation implements UserRepository {
     @Override
     public User findByEmail(String email) {
         return users.stream()
-                .filter(u -> u.getName().equals(email))
+                .filter(u -> u.getEmail().equals(email))
                 .findFirst()
                 .orElse(null);
     }
