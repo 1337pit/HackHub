@@ -15,4 +15,6 @@ public interface UserRepository {
     User save(User entity);
 
     void saveAll(List<User> entities);
+
+    void delete(User entity);
 }

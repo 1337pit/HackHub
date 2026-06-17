@@ -44,4 +44,9 @@ public class UserRepositoryImplementation implements UserRepository {
     public void saveAll(List<User> entities) {
         entities.forEach(this::save);
     }
+
+    @Override
+    public void delete(User entity) {
+        users.removeIf(u -> u.getId().equals(entity.getId()));
+    }
 }

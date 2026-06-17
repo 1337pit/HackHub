@@ -6,8 +6,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import unicam.hackhub.model.Evaluation;
+import unicam.hackhub.model.Judge;
+import unicam.hackhub.model.Mentor;
+import unicam.hackhub.model.StaffMember;
 import unicam.hackhub.model.Submission;
 import unicam.hackhub.model.Team;
+import unicam.hackhub.repository.StaffMemberRepository;
 import unicam.hackhub.repository.SubmissionRepository;
 import unicam.hackhub.repository.TeamRepository;
 import unicam.hackhub.service.SubmissionService;
@@ -26,6 +31,9 @@ class SubmissionServiceTest {
     @Mock
     private TeamRepository teamRepository;
 
+    @Mock
+    private StaffMemberRepository staffMemberRepository;
+
     private SubmissionService submissionService;
 
     private Team team;
@@ -33,7 +41,7 @@ class SubmissionServiceTest {
 
     @BeforeEach
     void setUp() {
-        submissionService = new SubmissionService(submissionRepository, teamRepository);
+        submissionService = new SubmissionService(submissionRepository, teamRepository, staffMemberRepository);
 
         team = new Team(1L, "Team Alpha", List.of());
         submission = new Submission(1L, "Initial Submission");
@@ -119,6 +127,120 @@ class SubmissionServiceTest {
                 () -> submissionService.updateSubmission(1L, "Updated Submission"));
 
         assertEquals("Submission not found", exception.getMessage());
+
+        verify(submissionRepository, never()).save(any());
+    }
+
+    // -----------------------------------------------------------------------
+    // evaluateSubmission
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("evaluateSubmission - valid data returns evaluation and saves submission")
+    void evaluateSubmission_validData_returnsEvaluationAndSavesSubmission() {
+        Judge judge = new Judge(1L, "Judge One");
+        when(staffMemberRepository.findByID(1L)).thenReturn(judge);
+        when(submissionRepository.findByID(1L)).thenReturn(submission);
+        when(submissionRepository.save(submission)).thenReturn(submission);
+
+        Evaluation result = submissionService.evaluateSubmission(1L, 1L, 8, "Great work");
+
+        assertNotNull(result);
+        assertEquals(8, result.getGrade());
+        assertEquals("Great work", result.getBriefJudgement());
+        assertSame(result, submission.getGrade());
+
+        verify(submissionRepository).save(submission);
+    }
+
+    @Test
+    @DisplayName("evaluateSubmission - null data throws exception")
+    void evaluateSubmission_nullData_throwsException() {
+        assertThrows(IllegalArgumentException.class,
+                () -> submissionService.evaluateSubmission(null, 1L, 8, "Great work"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> submissionService.evaluateSubmission(1L, null, 8, "Great work"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> submissionService.evaluateSubmission(1L, 1L, 8, null));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> submissionService.evaluateSubmission(1L, 1L, 8, "   "));
+
+        verify(submissionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("evaluateSubmission - judge not found throws exception")
+    void evaluateSubmission_judgeNotFound_throwsException() {
+        when(staffMemberRepository.findByID(1L)).thenReturn(null);
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> submissionService.evaluateSubmission(1L, 1L, 8, "Great work"));
+
+        assertEquals("Judge not found", exception.getMessage());
+
+        verify(submissionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("evaluateSubmission - staff member is not a judge throws exception")
+    void evaluateSubmission_staffNotAJudge_throwsException() {
+        StaffMember mentor = new Mentor();
+        when(staffMemberRepository.findByID(1L)).thenReturn(mentor);
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> submissionService.evaluateSubmission(1L, 1L, 8, "Great work"));
+
+        assertEquals("Judge not found", exception.getMessage());
+
+        verify(submissionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("evaluateSubmission - submission not found throws exception")
+    void evaluateSubmission_submissionNotFound_throwsException() {
+        Judge judge = new Judge(1L, "Judge One");
+        when(staffMemberRepository.findByID(1L)).thenReturn(judge);
+        when(submissionRepository.findByID(1L)).thenReturn(null);
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> submissionService.evaluateSubmission(1L, 1L, 8, "Great work"));
+
+        assertEquals("Submission not found", exception.getMessage());
+
+        verify(submissionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("evaluateSubmission - submission already evaluated throws exception")
+    void evaluateSubmission_alreadyEvaluated_throwsException() {
+        Judge judge = new Judge(1L, "Judge One");
+        submission.setGrade(new Evaluation("Already judged", 7));
+
+        when(staffMemberRepository.findByID(1L)).thenReturn(judge);
+        when(submissionRepository.findByID(1L)).thenReturn(submission);
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> submissionService.evaluateSubmission(1L, 1L, 8, "Great work"));
+
+        assertEquals("Submission already evaluated", exception.getMessage());
+
+        verify(submissionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("evaluateSubmission - invalid grade propagates exception from Judge")
+    void evaluateSubmission_invalidGrade_propagatesExceptionFromJudge() {
+        Judge judge = new Judge(1L, "Judge One");
+        when(staffMemberRepository.findByID(1L)).thenReturn(judge);
+        when(submissionRepository.findByID(1L)).thenReturn(submission);
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> submissionService.evaluateSubmission(1L, 1L, 11, "Great work"));
+
+        assertEquals("Grade must be between 0 and 10", exception.getMessage());
 
         verify(submissionRepository, never()).save(any());
     }
