@@ -40,6 +40,45 @@ public class Organizer implements StaffMember {
         return null;
     }
 
+    /**
+     * Modifica un hackathon.
+     */
+    public Hackathon editHackathon(String name, String rulebook, LocalDate registrationDeadline,
+                                   String location, String prize, int maxTeamSize, Judge judge, Mentor mentor) {
+        if (name == null) {
+            throw new IllegalArgumentException("name cannot be null");
+        }
+        hackathon.setNameHackathon(name);
+        if (rulebook == null) {
+            throw new IllegalArgumentException("rulebook cannot be null");
+        }
+        hackathon.setRulebook(rulebook);
+        if (registrationDeadline == null) {
+            throw new IllegalArgumentException("registrationDeadline cannot be null");
+        }
+        hackathon.setRegistrationDeadline(registrationDeadline);
+        if (location == null) {
+            throw new IllegalArgumentException("location cannot be null");
+        }
+        hackathon.setLocation(location);
+        if (prize == null) {
+            throw new IllegalArgumentException("prize cannot be null");
+        }
+        hackathon.setPrize(prize);
+        if (maxTeamSize <= 0) {
+            throw new IllegalArgumentException("maxTeamSize cannot be <= 0");
+        }
+        hackathon.setMaxTeamSize(maxTeamSize);
+        if (judge == null) {
+            throw new IllegalArgumentException("judge cannot be null");
+        }
+        hackathon.setJudge(judge);
+
+        hackathon.setMentor(mentor);
+
+        return hackathon;
+    }
+
     public void addMentor(Mentor mentor) {
         // TODO
     }

@@ -31,6 +31,31 @@ public class Judge implements StaffMember {
         return evaluation;
     }
 
+    /**
+     * Modifica la valutazione di una sottomissione con un voto e un giudizio.
+     * Modifica un oggetto Evaluation e lo associa alla Submission.
+     */
+    public Evaluation editEvaluateSubmission(Submission submission, Evaluation evaluation,
+                                             int grade, String briefJudgment) {
+        if (submission == null)
+            throw new IllegalArgumentException("Submission cannot be null");
+        if (evaluation == null)
+            throw new IllegalArgumentException("Evaluation cannot be null");
+        if (grade < 0 || grade > 10)
+            throw new IllegalArgumentException("Grade must be between 0 and 10");
+        if (briefJudgment == null || briefJudgment.trim().isEmpty())
+            throw new IllegalArgumentException("Brief judgment cannot be empty");
+
+        if (evaluation.getGrade() == grade && evaluation.getBriefJudgement().equals(briefJudgment)) {
+            throw new IllegalArgumentException("No edited briefJudgment and/or grade");
+        }
+
+        evaluation.setGrade(grade);
+        evaluation.setBriefJudgement(briefJudgment);
+        submission.setGrade(evaluation);
+        return evaluation;
+    }
+
     public Long getId() { return id; }
     public String getName() { return name; }
     public String getEmail() { return email; }

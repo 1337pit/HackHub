@@ -62,6 +62,38 @@ public class HackathonService {
     }
 
     /**
+     * Mmodifica un hackathon seguendo il flusso del sequence diagram:
+     * 1. Verifica che l'hackathon esiste
+     * 2. Verifica che l'hackathon sia nello stato "in corso"
+     * 3. Delega la modifica dell'hackathon all'organizzatore
+     * 4. Modifica e salva l'hackathon modificato
+     */
+    public Hackathon editHackathon(Long hackathonID, String name, String rulebook, LocalDate registrationDeadline,
+                                   String location, String prize, int maxTeamSize, Judge judge, Mentor mentor) {
+
+        // 1. Verifica che l'hackathon esiste
+        Hackathon hackathon = hackathonRepository.findByID(hackathonID);
+        if(hackathon == null){
+            throw new IllegalArgumentException("Hackathon not found");
+        }
+
+        // 2. Verifica che l'hackathon è nello stato "in corso"
+        hackathon.isRegistrationOpen();
+
+        // 3. Ritorna l'organizzatore dell'hackathon
+        Organizer organizer = hackathon.getOrganizer();
+
+        // 4. Delega la modifica dell'hackathon all'organizzatore
+        Hackathon editedHackathon = organizer.editHackathon(name, rulebook, registrationDeadline,
+                location, prize, maxTeamSize, judge, mentor);
+
+        // 5. Salva l'hackathon modificato
+        hackathonRepository.save(editedHackathon);
+
+        return editedHackathon;
+    }
+
+    /**
      * Aggiunge un Mentore seguendo il flusso del sequence diagram:
      * 1. Verifica che l'utente esiste
      * 2. Verifica che l'utente non sia già Mentore o Giudice

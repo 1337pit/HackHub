@@ -1,6 +1,8 @@
 package unicam.hackhub.repository;
 
 import unicam.hackhub.model.Hackathon;
+import unicam.hackhub.model.Organizer;
+import unicam.hackhub.model.Submission;
 import unicam.hackhub.model.Team;
 
 import java.util.HashSet;

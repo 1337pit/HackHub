@@ -1,5 +1,6 @@
 package unicam.hackhub.repository;
 
+import unicam.hackhub.model.Evaluation;
 import unicam.hackhub.model.Submission;
 
 import java.util.List;
@@ -7,6 +8,8 @@ import java.util.List;
 public interface SubmissionRepository {
 
     public Submission findByID(Long submissionID);
+
+    public Evaluation findEvaluationByID(Long submissionID);
 
     public Submission save(Submission entity);
 

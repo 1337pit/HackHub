@@ -1,5 +1,6 @@
 package unicam.hackhub.repository;
 
+import unicam.hackhub.model.Evaluation;
 import unicam.hackhub.model.Submission;
 
 import java.util.HashSet;
@@ -16,6 +17,16 @@ public class SubmissionRepositoryImplementation implements SubmissionRepository 
                 .filter(s -> s.getId().equals(submissionID))
                 .findFirst()
                 .orElse(null);
+    }
+
+    @Override
+    public Evaluation findEvaluationByID(Long evaluationID) {
+            return submissions.stream()
+                    .map(Submission::getGrade)
+                    .filter(evaluation -> evaluation != null &&
+                            evaluation.getId().equals(evaluationID))
+                    .findFirst()
+                    .orElse(null);
     }
 
     @Override

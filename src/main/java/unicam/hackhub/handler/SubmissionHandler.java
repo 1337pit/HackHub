@@ -11,6 +11,7 @@ public class SubmissionHandler {
     public SubmissionHandler() {}
 
     public SubmissionHandler(SubmissionService submissionService) {
+
         this.submissionService = submissionService;
     }
 
@@ -34,6 +35,22 @@ public class SubmissionHandler {
             throw new IllegalStateException("Submission service is not defined");
         try {
             return submissionService.evaluateSubmission(judgeID, submissionID, grade, briefJudgment);
+        } catch (IllegalArgumentException e) {
+            System.err.println("evaluateSubmission error: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Gestisce la richiesta di modifica dellavalutazione di una sottomissione.
+     */
+    public Evaluation editEvaluateSubmission(Long judgeID, Long submissionID, Long hackathonID,
+                                             Long evaluationID, int grade, String briefJudgment) {
+        if (submissionService == null)
+            throw new IllegalStateException("Submission service is not defined");
+        try {
+            return submissionService.editEvaluateSubmission(judgeID, submissionID, hackathonID,
+                    evaluationID, grade, briefJudgment);
         } catch (IllegalArgumentException e) {
             System.err.println("evaluateSubmission error: " + e.getMessage());
             return null;

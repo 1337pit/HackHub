@@ -181,11 +181,9 @@ public class Hackathon implements HackathonState {
         this.judge = judge;
     }
 
-    public void setMentor(List<Mentor> mentor) {
-        if (mentor == null) {
-            this.mentor = new ArrayList<>();
-        } else {
-            this.mentor = new ArrayList<>(mentor);
+    public void setMentor(Mentor mentor) {
+        if (mentor != null) {
+            this.mentor.add(mentor);
         }
     }
 }

@@ -45,6 +45,31 @@ public class HackathonHandler {
     }
 
     /**
+     * Gestisce la richiesta di modifica hackathon.
+     * Corrisponde al metodo createHackathon nel sequence diagram.
+     *
+     * @param name                  Nome dell'hackathon
+     * @param rulebook              Regolamento del team
+     * @param registrationDeadline  Deadline per la registrazione di un team all'hackathon
+     * @param location              Location dell'hackathon
+     * @param prize                 Premio dell'hackathon
+     * @param maxTeamSize           Numero massimo di team all'interno di un hackathon
+     * @param judge                 Giudice dell'hackathon
+     * @param mentor                Mentore dell'hackathon
+     * @return L'hackathon modificato, o null in caso di errore
+     */
+    public Hackathon editHackathon(Long hackathonID, String name, String rulebook, LocalDate registrationDeadline,
+                                   String location, String prize, int maxTeamSize, Judge judge, Mentor mentor) {
+        try {
+            return hackathonService.editHackathon(hackathonID, name, rulebook, registrationDeadline, location,
+                                                        prize, maxTeamSize, judge, mentor);
+        } catch (IllegalArgumentException e) {
+            System.err.println("editHackathon error: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Gestisce la richiesta di aggiungi mentore.
      * Corrisponde al metodo addMentor nel sequence diagram.
      * @param email        Email dell'utente

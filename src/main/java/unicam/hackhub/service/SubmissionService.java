@@ -1,6 +1,7 @@
 package unicam.hackhub.service;
 
 import unicam.hackhub.model.*;
+import unicam.hackhub.repository.HackathonRepository;
 import unicam.hackhub.repository.StaffMemberRepository;
 import unicam.hackhub.repository.SubmissionRepository;
 import unicam.hackhub.repository.TeamRepository;
@@ -12,13 +13,16 @@ public class SubmissionService {
     private final SubmissionRepository submissionRepository;
     private final TeamRepository teamRepository;
     private final StaffMemberRepository staffMemberRepository;
+    private final HackathonRepository hackathonRepository;
 
     public SubmissionService(SubmissionRepository submissionRepository,
                              TeamRepository teamRepository,
-                             StaffMemberRepository staffMemberRepository) {
+                             StaffMemberRepository staffMemberRepository,
+                             HackathonRepository hackathonRepository) {
         this.submissionRepository = submissionRepository;
         this.teamRepository = teamRepository;
         this.staffMemberRepository = staffMemberRepository;
+        this.hackathonRepository = hackathonRepository;
     }
 
     /**
@@ -101,4 +105,51 @@ public class SubmissionService {
 
         return evaluation;
     }
+
+    /**
+     * Modifica la valutazione di una sottomissione.
+     * Segue il sequence diagram di "Modifica Valutazione Sottomissione":
+     * 1. Verifica dati validi
+     * 2. Recupera il giudice e verifica che esista
+     * 3. Recupera l'hackathon e verifica che sia nello stato "in corso"
+     * 4. Recupera la valutazione e verifica che esista
+     * 5. Recupera la submission e verifica che esista
+     * 6. Delega la modifica della valutazione a Judge.editEvaluateSubmission()
+     * 7. Salva la submission aggiornata
+     */
+    public Evaluation editEvaluateSubmission(Long judgeID, Long submissionID, Long hackathonID,
+                                             Long evaluationID, int grade, String briefJudgment) {
+        // 1. Verifica dai validi
+        if (judgeID == null || submissionID == null || evaluationID == null ||
+                grade<0 || grade>10 || briefJudgment==null || briefJudgment.trim().isEmpty())
+            throw new IllegalArgumentException("Invalid data");
+
+        // 2. Recupera il giudice
+        Judge judge = staffMemberRepository.getJudge(judgeID);
+
+        // 3. Recupera l'hackathon
+        Hackathon hackathon = hackathonRepository.findByID(hackathonID);
+
+        // 4. Verifica che l'hackathon sia nello stato "in corso"
+        hackathon.isRegistrationOpen();
+
+        // 5. Recupera la valutazione da modificare
+        Evaluation evaluation = submissionRepository.findEvaluationByID(evaluationID);
+        if(evaluation == null)
+            throw new IllegalArgumentException("Evaluation not found");
+
+        // 6. Recupera la sottomissione valutata
+        Submission submission = submissionRepository.findByID(submissionID);
+        if (submission == null)
+            throw new IllegalArgumentException("Submission not found");
+
+        // 7. Delega la modifica della valutazione all'entità Judge
+        judge.editEvaluateSubmission(submission, evaluation, grade, briefJudgment);
+
+        // 8. Salva la submission aggiornata con la valutazione
+        submissionRepository.save(submission);
+
+        return evaluation;
+    }
+
 }
