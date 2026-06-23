@@ -172,6 +172,45 @@ public class HackathonHandlerTest {
         verify(hackathonService, times(1)).declareWinner(mockTeam);
     }
 
+    // --- TEST PER getParticipants ---
+
+    @Test
+    void getParticipants_Success() {
+        Long staffMemberID = 1L;
+        Long hackathonID = 10L;
+
+        List<Registration> registrations =
+                List.of(mock(Registration.class));
+
+        when(hackathonService.getParticipants(staffMemberID, hackathonID))
+                .thenReturn(registrations);
+
+        List<Registration> result =
+                hackathonHandler.getParticipants(staffMemberID, hackathonID);
+
+        assertEquals(registrations, result);
+
+        verify(hackathonService, times(1))
+                .getParticipants(staffMemberID, hackathonID);
+    }
+
+    @Test
+    void getParticipants_Exception_ReturnsNull() {
+        Long staffMemberID = 1L;
+        Long hackathonID = 10L;
+
+        when(hackathonService.getParticipants(staffMemberID, hackathonID))
+                .thenThrow(new IllegalArgumentException("No participant registered"));
+
+        List<Registration> result =
+                hackathonHandler.getParticipants(staffMemberID, hackathonID);
+
+        assertNull(result);
+
+        verify(hackathonService, times(1))
+                .getParticipants(staffMemberID, hackathonID);
+    }
+
     // --- TEST PER changeState ---
 
     /*@Test

@@ -4,6 +4,7 @@ import unicam.hackhub.model.*;
 import unicam.hackhub.repository.HackathonRepository;
 import unicam.hackhub.repository.StaffMemberRepository;
 import unicam.hackhub.repository.UserRepository;
+import unicam.hackhub.repository.RegistrationRepository;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -13,13 +14,17 @@ public class HackathonService {
     private HackathonRepository hackathonRepository;
     private StaffMemberRepository staffMemberRepository;
     private UserRepository userRepository;
+    private RegistrationRepository registrationRepository;
 
 
-    public HackathonService(HackathonRepository hackathonRepository, StaffMemberRepository staffMemberRepository,
-                            UserRepository userRepository) {
+    public HackathonService(HackathonRepository hackathonRepository,
+                            StaffMemberRepository staffMemberRepository,
+                            UserRepository userRepository,
+                            RegistrationRepository registrationRepository) {
         this.hackathonRepository = hackathonRepository;
         this.staffMemberRepository = staffMemberRepository;
         this.userRepository = userRepository;
+        this.registrationRepository = registrationRepository;
     }
 
     /**
@@ -149,6 +154,40 @@ public class HackathonService {
         }
 
         return hackathonRepository.findByStaffMember(staffMemberID);
+    }
+
+    /**
+     * Restituisce i team registrati con i relativi partecipanti
+     * per un hackathon assegnato al membro dello staff.
+     */
+    public List<Registration> getParticipants(Long staffMemberID, Long hackathonID) {
+        if (staffMemberID == null || hackathonID == null) {
+            throw new IllegalArgumentException("Staff member ID and hackathon ID cannot be null");
+        }
+
+        List<Hackathon> assignedHackathons = getAssignedHackathons(staffMemberID);
+
+        boolean assigned = false;
+
+        for (Hackathon hackathon : assignedHackathons) {
+            if (hackathon.getId() != null && hackathon.getId().equals(hackathonID)) {
+                assigned = true;
+                break;
+            }
+        }
+
+        if (!assigned) {
+            throw new IllegalArgumentException("Hackathon not assigned to staff member");
+        }
+
+        List<Registration> registrations =
+                registrationRepository.findByHackathon(hackathonID);
+
+        if (registrations == null || registrations.isEmpty()) {
+            throw new IllegalArgumentException("No participant registered");
+        }
+
+        return registrations;
     }
 
     public void declareWinner(Team team){

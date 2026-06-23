@@ -7,6 +7,7 @@ import unicam.hackhub.model.Team;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.ArrayList;
 
 public class RegistrationRepositoryImplementation implements RegistrationRepository {
 
@@ -34,6 +35,21 @@ public class RegistrationRepositoryImplementation implements RegistrationReposit
                 .filter(r -> r.getTeam().equals(team) && r.getHackathon().equals(hackathon))
                 .findFirst()
                 .orElse(null);
+    }
+
+    @Override
+    public List<Registration> findByHackathon(Long hackathonID) {
+        List<Registration> result = new ArrayList<>();
+
+        for (Registration registration : registrations) {
+            if (registration.getHackathon() != null
+                    && registration.getHackathon().getId() != null
+                    && registration.getHackathon().getId().equals(hackathonID)) {
+                result.add(registration);
+            }
+        }
+
+        return result;
     }
 
     @Override
