@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test;
 import unicam.hackhub.model.*;
 import unicam.hackhub.repository.*;
 import unicam.hackhub.service.HackathonService;
-
+import java.util.List;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -257,5 +257,71 @@ public class HackathonServiceTest {
         validTeam.getSize();
 
         assertDoesNotThrow(() -> hackathonService.checkTeamSize(validTeam, hackathon));
+    }
+
+    // =========================================================================
+    // GET ASSIGNED HACKATHONS TESTS
+    // =========================================================================
+
+    @Test
+    void getAssignedHackathons_Success() {
+        Mentor assignedMentor = new Mentor(20L, "Assigned Mentor",
+                "assigned@example.com", null);
+        staffMemberRepository.save(assignedMentor);
+
+        Hackathon assignedHackathon = new Hackathon(
+                "Assigned Hackathon",
+                "Rules",
+                LocalDate.now().plusDays(1),
+                LocalDate.now().plusDays(2),
+                LocalDate.now().plusDays(3),
+                "Camerino",
+                "Prize",
+                new RegistrationState(),
+                5,
+                organizer,
+                new Judge(30L, "Judge"),
+                List.of(assignedMentor)
+        );
+        assignedHackathon.setId(200L);
+
+        Hackathon otherHackathon = new Hackathon(
+                "Other Hackathon",
+                "Rules",
+                LocalDate.now().plusDays(1),
+                LocalDate.now().plusDays(2),
+                LocalDate.now().plusDays(3),
+                "Online",
+                "Prize",
+                new RegistrationState(),
+                5,
+                new Organizer(40L, "Other Organizer"),
+                new Judge(41L, "Other Judge"),
+                new ArrayList<>()
+        );
+        otherHackathon.setId(201L);
+
+        hackathonRepository.save(assignedHackathon);
+        hackathonRepository.save(otherHackathon);
+
+        List<Hackathon> result =
+                hackathonService.getAssignedHackathons(20L);
+
+        assertEquals(1, result.size());
+        assertEquals(assignedHackathon, result.get(0));
+    }
+
+    @Test
+    void getAssignedHackathons_StaffNotFound_ThrowsException() {
+        assertThrows(IllegalArgumentException.class, () ->
+                hackathonService.getAssignedHackathons(999L)
+        );
+    }
+
+    @Test
+    void getAssignedHackathons_NullID_ThrowsException() {
+        assertThrows(IllegalArgumentException.class, () ->
+                hackathonService.getAssignedHackathons(null)
+        );
     }
 }
