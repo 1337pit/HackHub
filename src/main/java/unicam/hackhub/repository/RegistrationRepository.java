@@ -18,4 +18,5 @@ public interface RegistrationRepository {
 
     public void saveAll(List<Registration> entities);
 
+    public List<Registration> findByHackathon(Long hackathonID);
 }

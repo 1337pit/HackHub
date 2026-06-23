@@ -20,14 +20,21 @@ public class HackathonServiceTest {
     private UserRepository userRepository;
     private Organizer organizer;
     private Hackathon hackathon;
+    private RegistrationRepository registrationRepository;
 
     @BeforeEach
     void setUp() {
         hackathonRepository = new HackathonRepositoryImplementation();
         staffMemberRepository = new StaffMemberRepositoryImplementation();
         userRepository = new UserRepositoryImplementation();
+        registrationRepository = new RegistrationRepositoryImplementation();
 
-        hackathonService = new HackathonService(hackathonRepository, staffMemberRepository, userRepository);
+        hackathonService = new HackathonService(
+                hackathonRepository,
+                staffMemberRepository,
+                userRepository,
+                registrationRepository
+        );
         organizer = new Organizer(1L, "Organizer");
 
         hackathon = new Hackathon(
@@ -322,6 +329,131 @@ public class HackathonServiceTest {
     void getAssignedHackathons_NullID_ThrowsException() {
         assertThrows(IllegalArgumentException.class, () ->
                 hackathonService.getAssignedHackathons(null)
+        );
+    }
+
+    // =========================================================================
+// GET PARTICIPANTS TESTS
+// =========================================================================
+
+    @Test
+    void getParticipants_Success() {
+        Mentor staffMember = new Mentor(
+                20L,
+                "Assigned Mentor",
+                "mentor@example.com",
+                null
+        );
+        staffMemberRepository.save(staffMember);
+
+        Hackathon assignedHackathon = new Hackathon(
+                "Assigned Hackathon",
+                "Rules",
+                LocalDate.now().plusDays(1),
+                LocalDate.now().plusDays(2),
+                LocalDate.now().plusDays(3),
+                "Camerino",
+                "Prize",
+                new RegistrationState(),
+                5,
+                organizer,
+                new Judge(30L, "Judge"),
+                List.of(staffMember)
+        );
+        assignedHackathon.setId(300L);
+        hackathonRepository.save(assignedHackathon);
+
+        Team team = new Team(
+                50L,
+                "Team Alpha",
+                List.of(new User(51L, "Andrea", "andrea@example.com"))
+        );
+
+        Registration registration =
+                new Registration(60L, team, assignedHackathon);
+
+        registrationRepository.save(registration);
+
+        List<Registration> result =
+                hackathonService.getParticipants(20L, 300L);
+
+        assertEquals(1, result.size());
+        assertEquals(registration, result.get(0));
+        assertEquals(team, result.get(0).getTeam());
+    }
+
+    @Test
+    void getParticipants_NoParticipants_ThrowsException() {
+        Mentor staffMember = new Mentor(
+                21L,
+                "Assigned Mentor",
+                "mentor2@example.com",
+                null
+        );
+        staffMemberRepository.save(staffMember);
+
+        Hackathon assignedHackathon = new Hackathon(
+                "Empty Hackathon",
+                "Rules",
+                LocalDate.now().plusDays(1),
+                LocalDate.now().plusDays(2),
+                LocalDate.now().plusDays(3),
+                "Online",
+                "Prize",
+                new RegistrationState(),
+                5,
+                organizer,
+                new Judge(31L, "Judge"),
+                List.of(staffMember)
+        );
+        assignedHackathon.setId(301L);
+        hackathonRepository.save(assignedHackathon);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                hackathonService.getParticipants(21L, 301L)
+        );
+    }
+
+    @Test
+    void getParticipants_HackathonNotAssigned_ThrowsException() {
+        Mentor staffMember = new Mentor(
+                22L,
+                "Staff Member",
+                "mentor3@example.com",
+                null
+        );
+        staffMemberRepository.save(staffMember);
+
+        Hackathon otherHackathon = new Hackathon(
+                "Other Hackathon",
+                "Rules",
+                LocalDate.now().plusDays(1),
+                LocalDate.now().plusDays(2),
+                LocalDate.now().plusDays(3),
+                "Online",
+                "Prize",
+                new RegistrationState(),
+                5,
+                organizer,
+                new Judge(32L, "Judge"),
+                new ArrayList<>()
+        );
+        otherHackathon.setId(302L);
+        hackathonRepository.save(otherHackathon);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                hackathonService.getParticipants(22L, 302L)
+        );
+    }
+
+    @Test
+    void getParticipants_NullID_ThrowsException() {
+        assertThrows(IllegalArgumentException.class, () ->
+                hackathonService.getParticipants(null, 300L)
+        );
+
+        assertThrows(IllegalArgumentException.class, () ->
+                hackathonService.getParticipants(20L, null)
         );
     }
 }

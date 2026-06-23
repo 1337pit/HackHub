@@ -100,6 +100,23 @@ public class HackathonHandler {
         }
     }
 
+    /**
+     * Gestisce la visualizzazione dei partecipanti
+     * di un hackathon assegnato al membro dello staff.
+     *
+     * @param staffMemberID ID del membro dello staff
+     * @param hackathonID ID dell'hackathon selezionato
+     * @return registrazioni contenenti team e partecipanti, oppure null
+     */
+    public List<Registration> getParticipants(Long staffMemberID, Long hackathonID) {
+        try {
+            return hackathonService.getParticipants(staffMemberID, hackathonID);
+        } catch (IllegalArgumentException e) {
+            System.err.println("getParticipants error: " + e.getMessage());
+            return null;
+        }
+    }
+
     public void declareWinner(Team team) {
         try {
             hackathonService.declareWinner(team);
