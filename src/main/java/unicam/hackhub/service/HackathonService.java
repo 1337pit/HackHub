@@ -133,6 +133,24 @@ public class HackathonService {
         System.out.println("Mentor added succesfully");
     }
 
+    /**
+     * Restituisce gli hackathon assegnati a un membro dello staff.
+     * Il membro può essere organizzatore, giudice o mentore.
+     */
+    public List<Hackathon> getAssignedHackathons(Long staffMemberID) {
+        if (staffMemberID == null) {
+            throw new IllegalArgumentException("Staff member ID cannot be null");
+        }
+
+        StaffMember staffMember = staffMemberRepository.findByID(staffMemberID);
+
+        if (staffMember == null) {
+            throw new IllegalArgumentException("Staff member not found");
+        }
+
+        return hackathonRepository.findByStaffMember(staffMemberID);
+    }
+
     public void declareWinner(Team team){
 
     }

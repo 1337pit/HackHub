@@ -1,13 +1,11 @@
 package unicam.hackhub.repository;
 
 import unicam.hackhub.model.Hackathon;
-import unicam.hackhub.model.Organizer;
-import unicam.hackhub.model.Submission;
-import unicam.hackhub.model.Team;
-
+import unicam.hackhub.model.Mentor;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.ArrayList;
 
 public class HackathonRepositoryImplementation implements HackathonRepository {
 
@@ -27,6 +25,40 @@ public class HackathonRepositoryImplementation implements HackathonRepository {
                 .filter(h -> h.getNameHackathon().equals(name))
                 .findFirst()
                 .orElse(null);
+    }
+
+    @Override
+    public List<Hackathon> findByStaffMember(Long staffMemberID) {
+        List<Hackathon> assignedHackathons = new ArrayList<>();
+
+        for (Hackathon hackathon : hackathons) {
+            boolean assigned = false;
+
+            if (hackathon.getOrganizer() != null
+                    && hackathon.getOrganizer().getId().equals(staffMemberID)) {
+                assigned = true;
+            }
+
+            if (hackathon.getJudge() != null
+                    && hackathon.getJudge().getId().equals(staffMemberID)) {
+                assigned = true;
+            }
+
+            if (hackathon.getMentor() != null) {
+                for (Mentor mentor : hackathon.getMentor()) {
+                    if (mentor.getId().equals(staffMemberID)) {
+                        assigned = true;
+                        break;
+                    }
+                }
+            }
+
+            if (assigned) {
+                assignedHackathons.add(hackathon);
+            }
+        }
+
+        return assignedHackathons;
     }
 
     @Override

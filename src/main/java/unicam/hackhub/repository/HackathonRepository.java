@@ -15,4 +15,5 @@ public interface HackathonRepository {
 
     public void saveAll(List<Hackathon> entities);
 
+    public List<Hackathon> findByStaffMember(Long staffMemberID);
 }

@@ -11,6 +11,7 @@ import unicam.hackhub.model.*;
 import unicam.hackhub.service.HackathonService;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -109,6 +110,42 @@ public class HackathonHandlerTest {
         // Act & Assert (Non deve lanciare eccezioni perché l'handler la cattura internamente)
         assertDoesNotThrow(() -> hackathonHandler.addMentor(email, hackathonID));
         verify(hackathonService, times(1)).addMentor(email, hackathonID);
+    }
+
+    // --- TEST PER getAssignedHackathons ---
+
+    @Test
+    void getAssignedHackathons_Success() {
+        Long staffMemberID = 1L;
+        List<Hackathon> hackathons = List.of(mockHackathon);
+
+        when(hackathonService.getAssignedHackathons(staffMemberID))
+                .thenReturn(hackathons);
+
+        List<Hackathon> result =
+                hackathonHandler.getAssignedHackathons(staffMemberID);
+
+        assertNotNull(result);
+        assertEquals(hackathons, result);
+
+        verify(hackathonService, times(1))
+                .getAssignedHackathons(staffMemberID);
+    }
+
+    @Test
+    void getAssignedHackathons_Exception_ReturnsNull() {
+        Long staffMemberID = 999L;
+
+        when(hackathonService.getAssignedHackathons(staffMemberID))
+                .thenThrow(new IllegalArgumentException("Staff member not found"));
+
+        List<Hackathon> result =
+                hackathonHandler.getAssignedHackathons(staffMemberID);
+
+        assertNull(result);
+
+        verify(hackathonService, times(1))
+                .getAssignedHackathons(staffMemberID);
     }
 
     // --- TEST PER declareWinner ---

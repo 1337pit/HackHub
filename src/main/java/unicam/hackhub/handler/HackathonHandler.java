@@ -2,7 +2,7 @@ package unicam.hackhub.handler;
 
 import unicam.hackhub.model.*;
 import unicam.hackhub.service.HackathonService;
-
+import java.util.List;
 import java.time.LocalDate;
 
 public class HackathonHandler {
@@ -81,6 +81,22 @@ public class HackathonHandler {
             hackathonService.addMentor(email, hackathonID);
         } catch (IllegalArgumentException e) {
             System.err.println("addMentor error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Gestisce la richiesta di visualizzazione degli hackathon
+     * assegnati a un membro dello staff.
+     *
+     * @param staffMemberID ID del membro dello staff
+     * @return Lista degli hackathon assegnati, oppure null in caso di errore
+     */
+    public List<Hackathon> getAssignedHackathons(Long staffMemberID) {
+        try {
+            return hackathonService.getAssignedHackathons(staffMemberID);
+        } catch (IllegalArgumentException e) {
+            System.err.println("getAssignedHackathons error: " + e.getMessage());
+            return null;
         }
     }
 
