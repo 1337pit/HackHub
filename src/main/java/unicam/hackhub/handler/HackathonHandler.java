@@ -74,7 +74,6 @@ public class HackathonHandler {
      * Corrisponde al metodo addMentor nel sequence diagram.
      * @param email        Email dell'utente
      * @param hackathonID  Id dell'hackathon
-     * @return Il mentore aggiunto, o null in caso di errore.
      */
     public void addMentor(String email, Long hackathonID) {
         try {
@@ -130,6 +129,19 @@ public class HackathonHandler {
             hackathonService.changeState(state);
         } catch (IllegalArgumentException e) {
             System.err.println("changeState error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Gestisce la richiesta di consultare le sottomissioni di un hackathon.
+     * Usato nel caso d'uso "Consulta Elenco Sottomissioni" del Membro Staff.
+     */
+    public List<Submission> getSubmissions(Long StaffMemberID, Long hackathonID) {
+        try {
+            return hackathonService.getSubmissions(StaffMemberID, hackathonID);
+        } catch (IllegalArgumentException e) {
+            System.err.println("getSubmissions error: " + e.getMessage());
+            return null;
         }
     }
 }

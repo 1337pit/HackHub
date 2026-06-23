@@ -1,20 +1,17 @@
 package unicam.hackhub.service;
 
 import unicam.hackhub.model.*;
-import unicam.hackhub.repository.HackathonRepository;
-import unicam.hackhub.repository.StaffMemberRepository;
-import unicam.hackhub.repository.UserRepository;
-import unicam.hackhub.repository.RegistrationRepository;
+import unicam.hackhub.repository.*;
 
 import java.time.LocalDate;
 import java.util.List;
 
 public class HackathonService {
 
-    private HackathonRepository hackathonRepository;
-    private StaffMemberRepository staffMemberRepository;
-    private UserRepository userRepository;
-    private RegistrationRepository registrationRepository;
+    private final HackathonRepository hackathonRepository;
+    private final StaffMemberRepository staffMemberRepository;
+    private final UserRepository userRepository;
+    private final RegistrationRepository registrationRepository;
 
 
     public HackathonService(HackathonRepository hackathonRepository,
@@ -247,4 +244,43 @@ public class HackathonService {
         }
     }
 
+    /**
+     * Recupera la lista delle sottomissioni per un hackathon.
+     * Usato nel caso d'uso "Consulta Elenco Sottomissioni" del Membro Staff.
+     * 1. Verifica che l'hackathon esista
+     * 2. Recupera le sottomissioni tramite SubmissionRepository
+     */
+    public List<Submission> getSubmissions(Long staffMemberID, Long hackathonID) {
+        if (staffMemberID == null || hackathonID == null)
+            throw new IllegalArgumentException("Staff member ID and hackathon ID cannot be null");
+
+        List<Hackathon> assignedHackathons = getAssignedHackathons(staffMemberID);
+
+        boolean assigned = false;
+
+        for (Hackathon hackathon : assignedHackathons) {
+            if (hackathon.getId() != null && hackathon.getId().equals(hackathonID)) {
+                assigned = true;
+                break;
+            }
+        }
+
+        if (!assigned)
+            throw new IllegalArgumentException("Hackathon not assigned to staff member");
+
+        List<Registration> registrations = registrationRepository.findByHackathon(hackathonID);
+
+        if (registrations == null || registrations.isEmpty())
+            throw new IllegalArgumentException("No submissions found");
+
+        List<Submission> submissions = registrations.stream()
+                .map(r -> r.getTeam().getSubmission())
+                .filter(s -> s != null)
+                .collect(java.util.stream.Collectors.toList());
+
+        if (submissions.isEmpty())
+            throw new IllegalArgumentException("No submissions found");
+
+        return submissions;
+    }
 }
