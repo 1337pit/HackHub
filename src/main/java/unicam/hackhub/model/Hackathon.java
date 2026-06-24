@@ -1,10 +1,13 @@
 package unicam.hackhub.model;
 
+import unicam.hackhub.model.observer.HackathonObservable;
+import unicam.hackhub.model.observer.HackathonObserver;
+
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Hackathon implements HackathonState {
+public class Hackathon implements HackathonState, HackathonObservable {
 
     private Long id;
     private String nameHackathon;
@@ -19,6 +22,7 @@ public class Hackathon implements HackathonState {
     private Organizer organizer;
     private Judge judge;
     private List<Mentor> mentor = new ArrayList<>();
+    private List<HackathonObserver> observers = new ArrayList<>();
 
     public Hackathon() {
 
@@ -51,39 +55,78 @@ public class Hackathon implements HackathonState {
         }
     }
 
+    // -------------------------------------------------------------------------
+    // HackathonObservable implementation
+    // -------------------------------------------------------------------------
+
+    @Override
+    public void addObserver(HackathonObserver observer) {
+        if (observer == null)
+            throw new IllegalArgumentException("Observer cannot be null");
+        if (!observers.contains(observer))
+            observers.add(observer);
+    }
+
+    @Override
+    public void removeObserver(HackathonObserver observer) {
+        observers.remove(observer);
+    }
+
+    @Override
+    public void notifyObservers() {
+        for (HackathonObserver observer : observers)
+            observer.update(this.state);
+    }
+
+    // -------------------------------------------------------------------------
+    // HackathonState delegation
+    // -------------------------------------------------------------------------
+
     @Override
     public void onRegisterTeam() {
-        if (state == null) {
+        if (state == null)
             throw new IllegalStateException("Hackathon state is not defined");
-        }
-
         state.onRegisterTeam();
     }
 
     @Override
     public void onUpload() {
-        if (state == null) {
+        if (state == null)
             throw new IllegalStateException("Hackathon state is not defined");
-        }
-
         state.onUpload();
     }
 
-    public boolean isRegistrationOpen() {
-        if (registrationDeadline == null) {
-            return false;
-        }
+    /**
+     * Cambia lo stato dell'hackathon e notifica tutti gli observer.
+     * Punto di integrazione tra State pattern e Observer pattern.
+     */
+    public void changeState(HackathonState newState) {
+        if (newState == null)
+            throw new IllegalArgumentException("New state cannot be null");
+        this.state = newState;
+        notifyObservers();
+    }
 
+    // -------------------------------------------------------------------------
+    // Business logic
+    // -------------------------------------------------------------------------
+
+    public boolean isRegistrationOpen() {
+        if (registrationDeadline == null)
+            return false;
         return !LocalDate.now().isAfter(registrationDeadline);
     }
 
     public Mentor addMentor(Mentor mentor) {
-        if (mentor == null) {
+        if (mentor == null)
             throw new NullPointerException("mentor cannot be null");
-        }
         this.mentor.add(mentor);
         return mentor;
     }
+
+    // -------------------------------------------------------------------------
+    // Getters and Setters
+    // -------------------------------------------------------------------------
 
     public Long getId() {
         return id;
@@ -117,7 +160,9 @@ public class Hackathon implements HackathonState {
         return prize;
     }
 
-    public HackathonState getState() { return state; }
+    public HackathonState getState() {
+        return state;
+    }
 
     public int getMaxTeamSize() {
         return maxTeamSize;
@@ -133,6 +178,10 @@ public class Hackathon implements HackathonState {
 
     public List<Mentor> getMentor() {
         return mentor;
+    }
+
+    public List<HackathonObserver> getObservers() {
+        return observers;
     }
 
     public void setId(Long id) {
@@ -167,7 +216,9 @@ public class Hackathon implements HackathonState {
         this.prize = prize;
     }
 
-    public void setState(HackathonState state) {this.state = state; }
+    public void setState(HackathonState state) {
+        this.state = state;
+    }
 
     public void setMaxTeamSize(int maxTeamSize) {
         this.maxTeamSize = maxTeamSize;
@@ -182,8 +233,7 @@ public class Hackathon implements HackathonState {
     }
 
     public void setMentor(Mentor mentor) {
-        if (mentor != null) {
+        if (mentor != null)
             this.mentor.add(mentor);
-        }
     }
 }

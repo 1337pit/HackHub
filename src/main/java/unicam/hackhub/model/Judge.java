@@ -1,6 +1,9 @@
 package unicam.hackhub.model;
 
-public class Judge implements StaffMember {
+import unicam.hackhub.model.observer.HackathonObserver;
+import unicam.hackhub.model.state.EvaluationState;
+
+public class Judge implements StaffMember, HackathonObserver {
 
     private Long id;
     private String name;
@@ -12,6 +15,17 @@ public class Judge implements StaffMember {
     public Judge(Long id, String name) {
         this.id = id;
         this.name = name;
+    }
+
+    /**
+     * Notifica il Giudice del cambio di stato dell'Hackathon.
+     * Il Giudice è interessato alla transizione a ValuationState.
+     */
+    @Override
+    public void update(HackathonState newState) {
+        if (newState instanceof EvaluationState) {
+            System.out.println("Judge [" + name + "] notified: valuation phase started. You can now evaluate submissions.");
+        }
     }
 
     /**
@@ -35,7 +49,7 @@ public class Judge implements StaffMember {
      * Modifica la valutazione di una sottomissione con un voto e un giudizio.
      * Modifica un oggetto Evaluation e lo associa alla Submission.
      */
-    public Evaluation editEvaluateSubmission(Submission submission, Evaluation evaluation,
+    public void editEvaluateSubmission(Submission submission, Evaluation evaluation,
                                              int grade, String briefJudgment) {
         if (submission == null)
             throw new IllegalArgumentException("Submission cannot be null");
@@ -53,7 +67,6 @@ public class Judge implements StaffMember {
         evaluation.setGrade(grade);
         evaluation.setBriefJudgement(briefJudgment);
         submission.setGrade(evaluation);
-        return evaluation;
     }
 
     public Long getId() { return id; }

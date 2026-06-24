@@ -3,6 +3,7 @@ package Service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import unicam.hackhub.model.*;
+import unicam.hackhub.model.state.RegistrationState;
 import unicam.hackhub.repository.*;
 import unicam.hackhub.service.HackathonService;
 import java.util.List;

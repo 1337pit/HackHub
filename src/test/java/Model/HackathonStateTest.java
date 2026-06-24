@@ -1,11 +1,11 @@
 package Model;
 
 import org.junit.jupiter.api.Test;
-import unicam.hackhub.model.ConcludedState;
-import unicam.hackhub.model.EvaluationState;
+import unicam.hackhub.model.state.ConcludedState;
+import unicam.hackhub.model.state.EvaluationState;
 import unicam.hackhub.model.Hackathon;
-import unicam.hackhub.model.InProgressState;
-import unicam.hackhub.model.RegistrationState;
+import unicam.hackhub.model.state.InProgressState;
+import unicam.hackhub.model.state.RegistrationState;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;

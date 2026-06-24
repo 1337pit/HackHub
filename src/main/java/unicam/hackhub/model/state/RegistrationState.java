@@ -1,4 +1,6 @@
-package unicam.hackhub.model;
+package unicam.hackhub.model.state;
+
+import unicam.hackhub.model.HackathonState;
 
 public class RegistrationState implements HackathonState {
 

@@ -1,8 +1,11 @@
 package unicam.hackhub.model;
 
+import unicam.hackhub.model.observer.*;
+import unicam.hackhub.model.state.*;
+
 import java.util.List;
 
-public class Team {
+public class Team implements HackathonObserver {
 
     private Long id;
     private String teamName;
@@ -21,12 +24,27 @@ public class Team {
     }
 
     public Invite createInvite(Long userID) {
-
         return new Invite();
     }
 
     public void deleteInvite(Long inviteID) {
         // TODO
+    }
+
+    /**
+     * Notifica il Team del cambio di stato dell'Hackathon.
+     * Il Team è interessato alla transizione a InProgressState
+     * (può iniziare a caricare submission) e a ConcludedState.
+     */
+    @Override
+    public void update(HackathonState newState) {
+        if (newState instanceof InProgressState) {
+            System.out.println("Team [" + teamName + "] notified: hackathon started. You can now upload your submission.");
+        } else if (newState instanceof EvaluationState) {
+            System.out.println("Team [" + teamName + "] notified: submission phase ended. Waiting for evaluation.");
+        } else if (newState instanceof ConcludedState) {
+            System.out.println("Team [" + teamName + "] notified: hackathon concluded. Check the results.");
+        }
     }
 
     public int getSize() {

@@ -1,6 +1,9 @@
 package unicam.hackhub.model;
 
-public class Mentor implements StaffMember {
+import unicam.hackhub.model.observer.HackathonObserver;
+import unicam.hackhub.model.state.InProgressState;
+
+public class Mentor implements StaffMember, HackathonObserver {
 
     private Long id;
     private String name;
@@ -16,6 +19,17 @@ public class Mentor implements StaffMember {
         this.name = name;
         this.email = email;
         this.hackathon = hackathon;
+    }
+
+    /**
+     * Notifica il Mentore del cambio di stato dell'Hackathon.
+     * Il Mentore è interessato alla transizione a InProgressState.
+     */
+    @Override
+    public void update(HackathonState newState) {
+        if (newState instanceof InProgressState) {
+            System.out.println("Mentor [" + name + "] notified: hackathon started. You can now support teams.");
+        }
     }
 
     public void proposeCall() {
