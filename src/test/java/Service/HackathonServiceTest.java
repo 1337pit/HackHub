@@ -333,8 +333,8 @@ public class HackathonServiceTest {
     }
 
     // =========================================================================
-// GET PARTICIPANTS TESTS
-// =========================================================================
+    // GET PARTICIPANTS TESTS
+    // =========================================================================
 
     @Test
     void getParticipants_Success() {
@@ -454,6 +454,165 @@ public class HackathonServiceTest {
 
         assertThrows(IllegalArgumentException.class, () ->
                 hackathonService.getParticipants(20L, null)
+        );
+    }
+
+    // =========================================================================
+    // GET SUBMISSIONS TESTS
+    // =========================================================================
+
+    @Test
+    void getSubmissions_Success() {
+        Mentor staffMember = new Mentor(
+                20L,
+                "Assigned Mentor",
+                "mentor@example.com",
+                null
+        );
+        staffMemberRepository.save(staffMember);
+
+        Hackathon assignedHackathon = new Hackathon(
+                "Assigned Hackathon",
+                "Rules",
+                LocalDate.now().plusDays(1),
+                LocalDate.now().plusDays(2),
+                LocalDate.now().plusDays(3),
+                "Camerino",
+                "Prize",
+                new RegistrationState(),
+                5,
+                organizer,
+                new Judge(30L, "Judge"),
+                List.of(staffMember)
+        );
+        assignedHackathon.setId(400L);
+        hackathonRepository.save(assignedHackathon);
+
+        Submission submission = new Submission(1L, "My Submission");
+        Team team = new Team(50L, "Team Alpha",
+                List.of(new User(51L, "Andrea", "andrea@example.com")));
+        team.setSubmission(submission);
+
+        Registration registration = new Registration(60L, team, assignedHackathon);
+        registrationRepository.save(registration);
+
+        List<Submission> result = hackathonService.getSubmissions(20L, 400L);
+
+        assertEquals(1, result.size());
+        assertEquals("My Submission", result.get(0).getName());
+    }
+
+    @Test
+    void getSubmissions_NullParams_ThrowsException() {
+        assertThrows(IllegalArgumentException.class, () ->
+                hackathonService.getSubmissions(null, 400L)
+        );
+        assertThrows(IllegalArgumentException.class, () ->
+                hackathonService.getSubmissions(20L, null)
+        );
+    }
+
+    @Test
+    void getSubmissions_HackathonNotAssigned_ThrowsException() {
+        Mentor staffMember = new Mentor(
+                21L,
+                "Assigned Mentor",
+                "mentor2@example.com",
+                null
+        );
+        staffMemberRepository.save(staffMember);
+
+        Hackathon otherHackathon = new Hackathon(
+                "Other Hackathon",
+                "Rules",
+                LocalDate.now().plusDays(1),
+                LocalDate.now().plusDays(2),
+                LocalDate.now().plusDays(3),
+                "Online",
+                "Prize",
+                new RegistrationState(),
+                5,
+                organizer,
+                new Judge(31L, "Judge"),
+                new ArrayList<>()  // staffMember non assegnato
+        );
+        otherHackathon.setId(401L);
+        hackathonRepository.save(otherHackathon);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                hackathonService.getSubmissions(21L, 401L)
+        );
+    }
+
+    @Test
+    void getSubmissions_NoRegistrations_ThrowsException() {
+        Mentor staffMember = new Mentor(
+                22L,
+                "Assigned Mentor",
+                "mentor3@example.com",
+                null
+        );
+        staffMemberRepository.save(staffMember);
+
+        Hackathon assignedHackathon = new Hackathon(
+                "Empty Hackathon",
+                "Rules",
+                LocalDate.now().plusDays(1),
+                LocalDate.now().plusDays(2),
+                LocalDate.now().plusDays(3),
+                "Online",
+                "Prize",
+                new RegistrationState(),
+                5,
+                organizer,
+                new Judge(32L, "Judge"),
+                List.of(staffMember)
+        );
+        assignedHackathon.setId(402L);
+        hackathonRepository.save(assignedHackathon);
+
+        // Nessuna registrazione salvata
+        assertThrows(IllegalArgumentException.class, () ->
+                hackathonService.getSubmissions(22L, 402L)
+        );
+    }
+
+    @Test
+    void getSubmissions_TeamWithoutSubmission_ThrowsException() {
+        Mentor staffMember = new Mentor(
+                23L,
+                "Assigned Mentor",
+                "mentor4@example.com",
+                null
+        );
+        staffMemberRepository.save(staffMember);
+
+        Hackathon assignedHackathon = new Hackathon(
+                "Hackathon No Sub",
+                "Rules",
+                LocalDate.now().plusDays(1),
+                LocalDate.now().plusDays(2),
+                LocalDate.now().plusDays(3),
+                "Online",
+                "Prize",
+                new RegistrationState(),
+                5,
+                organizer,
+                new Judge(33L, "Judge"),
+                List.of(staffMember)
+        );
+        assignedHackathon.setId(403L);
+        hackathonRepository.save(assignedHackathon);
+
+        // Team senza submission
+        Team team = new Team(55L, "Team Beta",
+                List.of(new User(56L, "Marco", "marco@example.com")));
+
+        Registration registration = new Registration(65L, team, assignedHackathon);
+        registrationRepository.save(registration);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                hackathonService.getSubmissions(23L, 403L)
         );
     }
 }

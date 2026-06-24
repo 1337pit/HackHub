@@ -237,4 +237,42 @@ public class HackathonHandlerTest {
         verify(hackathonService, times(1)).changeState(newState);
     }
     */
+
+    // --- TEST PER getSubmissions ---
+
+    @Test
+    void getSubmissions_Success() {
+        Long staffMemberID = 1L;
+        Long hackathonID = 10L;
+
+        List<Submission> submissions = List.of(mock(Submission.class));
+
+        when(hackathonService.getSubmissions(staffMemberID, hackathonID))
+                .thenReturn(submissions);
+
+        List<Submission> result =
+                hackathonHandler.getSubmissions(staffMemberID, hackathonID);
+
+        assertEquals(submissions, result);
+
+        verify(hackathonService, times(1))
+                .getSubmissions(staffMemberID, hackathonID);
+    }
+
+    @Test
+    void getSubmissions_Exception_ReturnsNull() {
+        Long staffMemberID = 1L;
+        Long hackathonID = 10L;
+
+        when(hackathonService.getSubmissions(staffMemberID, hackathonID))
+                .thenThrow(new IllegalArgumentException("No submissions found"));
+
+        List<Submission> result =
+                hackathonHandler.getSubmissions(staffMemberID, hackathonID);
+
+        assertNull(result);
+
+        verify(hackathonService, times(1))
+                .getSubmissions(staffMemberID, hackathonID);
+    }
 }
