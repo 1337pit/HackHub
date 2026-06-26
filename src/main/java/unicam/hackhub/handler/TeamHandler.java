@@ -33,4 +33,21 @@ public class TeamHandler {
         }
     }
 
+    /**
+     * Gestisce la richiesta di creazione richiesta supporto.
+     * Corrisponde al metodo requiresAssistance nel sequence diagram.
+     * @param id        Id della richiesta di supporto
+     * @param hackathonID  Id dell'hackathon
+     * @param userID  Id del membro del team
+     * @param teamID  Id del team
+     * @param mentorID  Id del mentore
+     */
+    public void requiresAssistance(Long id, Long hackathonID, Long userID, Long teamID, Long mentorID) {
+        try {
+            teamService.requiresAssistance(id, hackathonID, userID, teamID, mentorID);
+        } catch (IllegalArgumentException e) {
+            System.err.println("requiresAssistance error: " + e.getMessage());
+        }
+    }
+
 }

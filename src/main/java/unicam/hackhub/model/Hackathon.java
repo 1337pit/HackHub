@@ -6,6 +6,7 @@ import unicam.hackhub.model.observer.HackathonObserver;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 
 public class Hackathon implements HackathonState, HackathonObservable {
 
@@ -21,7 +22,7 @@ public class Hackathon implements HackathonState, HackathonObservable {
     private int maxTeamSize;
     private Organizer organizer;
     private Judge judge;
-    private List<Mentor> mentor = new ArrayList<>();
+    private List<Mentor> listMentors = new ArrayList<>();
     private List<HackathonObserver> observers = new ArrayList<>();
 
     public Hackathon() {
@@ -35,7 +36,7 @@ public class Hackathon implements HackathonState, HackathonObservable {
 
     public Hackathon(String name, String rulebook, LocalDate registrationDeadline, LocalDate startDate,
                      LocalDate endDate, String location, String prize, HackathonState state,
-                     int maxTeamSize, Organizer organizer, Judge judge, List<Mentor> mentor) {
+                     int maxTeamSize, Organizer organizer, Judge judge, List<Mentor> listMentors) {
         this.nameHackathon = name;
         this.rulebook = rulebook;
         this.registrationDeadline = registrationDeadline;
@@ -48,10 +49,10 @@ public class Hackathon implements HackathonState, HackathonObservable {
         this.organizer = organizer;
         this.judge = judge;
 
-        if (mentor == null) {
-            this.mentor = new ArrayList<>();
+        if (listMentors == null) {
+            this.listMentors = new ArrayList<>();
         } else {
-            this.mentor = new ArrayList<>(mentor);
+            this.listMentors = new ArrayList<>(listMentors);
         }
     }
 
@@ -120,8 +121,37 @@ public class Hackathon implements HackathonState, HackathonObservable {
     public Mentor addMentor(Mentor mentor) {
         if (mentor == null)
             throw new NullPointerException("mentor cannot be null");
-        this.mentor.add(mentor);
+        this.listMentors.add(mentor);
         return mentor;
+    }
+
+    public Mentor selectMentor(List<Mentor> listMentors) {
+
+        // Mostro la lista al membro dello staff
+        System.out.println("Seleziona uno dei seguenti mentori: ");
+        for (Mentor m : listMentors) {
+            System.out.println(m);
+        }
+
+        // Il membro dello staff sceglie il mentore
+        Mentor chosenMentor = null;
+        Scanner scanner = new Scanner(System.in);
+        while (chosenMentor == null) {
+            System.out.print("\nInserisci il numero del mentore che desideri scegliere: ");
+
+            if (scanner.hasNextInt()) {
+                int choice = scanner.nextInt();
+                for (Mentor m : listMentors) {
+                    if (m.getId() == choice)
+                        return chosenMentor = m;
+                }
+
+            } else {
+                System.out.println("ID non valido. Per favore, inserisci un numero valido.");
+                scanner.next(); // Pulisce il buffer dello scanner da input errati
+            }
+        }
+        return null;
     }
 
     // -------------------------------------------------------------------------
@@ -176,8 +206,8 @@ public class Hackathon implements HackathonState, HackathonObservable {
         return judge;
     }
 
-    public List<Mentor> getMentor() {
-        return mentor;
+    public List<Mentor> getListMentors() {
+        return listMentors;
     }
 
     public List<HackathonObserver> getObservers() {
@@ -234,6 +264,7 @@ public class Hackathon implements HackathonState, HackathonObservable {
 
     public void setMentor(Mentor mentor) {
         if (mentor != null)
-            this.mentor.add(mentor);
+            this.listMentors.add(mentor);
     }
+
 }
