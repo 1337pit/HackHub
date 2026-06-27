@@ -116,9 +116,17 @@ public class HackathonHandler {
         }
     }
 
-    public void declareWinner(Team team) {
+    /**
+     * Gestisce la dichiarazione del team vincitore
+     * Corrisponde al metodo declareWinner nel sequence diagram.
+     *
+     * @param organizerID ID dell'organizzatore
+     * @param winningTeamID ID del team vincitore
+     * @return il team vincitore
+     */
+    public void declareWinner(Long organizerID, Long winningTeamID) {
         try {
-            hackathonService.declareWinner(team);
+            hackathonService.declareWinner(organizerID, winningTeamID);
         } catch (IllegalArgumentException e) {
             System.err.println("declareWinner error: " + e.getMessage());
         }

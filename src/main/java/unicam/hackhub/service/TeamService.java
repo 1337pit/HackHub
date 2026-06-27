@@ -86,6 +86,48 @@ public class TeamService {
     }
 
     /**
+     * Elimina un team seguendo il flusso del sequence diagram:
+     * 1. Verifica che i dati siano corretti
+     * 2. Prende il team e il membro del team
+     * 3. Verifica che il membro del team sia presente nel team che vuole eliminare
+     * 4. Elimina il team
+     */
+    public void deleteTeam(Long teamID, Long userID) {
+
+        // 1. Verifica che i dati siano corretti
+        if(teamID == null || userID == null)
+            throw new IllegalArgumentException("teamID and userID cannot be null");
+
+        // 2. Prende il team
+        Team team = teamRepository.findByID(teamID);
+        if (team == null) {
+            throw new IllegalArgumentException("Team does not exist");
+        }
+
+        // 3. Prende il membro del team
+        User user = userRepository.findByID(userID);
+        if (user == null) {
+            throw new IllegalArgumentException("User does not exist");
+        }
+
+        // 4. Verifica che il membro del team sia presente nel team che vuole eliminare
+        Team teamUser = user.getCurrentTeam();
+        if (teamUser == null) {
+            throw new IllegalArgumentException("User is not in a team");
+        }
+        if (!teamUser.getId().equals(teamID)) {
+            throw new IllegalArgumentException("User is not in this team");
+        }
+
+        // 5. Elimina il team
+        teamRepository.delete(team);
+
+        // 6. Visualizza notifica di successo
+        System.out.println("Team has been deleted");
+
+    }
+
+    /**
      * Rimuove un team (usato da Organizer.banTeam).
      */
     public void banTeam(Team team) {

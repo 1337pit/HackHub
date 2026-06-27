@@ -31,6 +31,16 @@ public class StaffMemberRepositoryImplementation implements StaffMemberRepositor
     }
 
     @Override
+    public Organizer getOrganizer(Long organizerID) {
+        return staffMembers.stream()
+                .filter(s -> s instanceof Organizer)
+                .map(s -> (Organizer) s)
+                .filter(o -> o.getId().equals(organizerID))
+                .findFirst()
+                .orElse(null);
+    }
+
+    @Override
     public StaffMember findByID(Long staffMemberID) {
         return staffMembers.stream()
                 .filter(s -> s.getId().equals(staffMemberID))

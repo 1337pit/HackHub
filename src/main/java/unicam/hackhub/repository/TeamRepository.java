@@ -17,4 +17,6 @@ public interface TeamRepository {
 
     public void saveAll(List<Team> entities);
 
+    void delete(Team team);
+
 }

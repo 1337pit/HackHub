@@ -1,9 +1,6 @@
 package unicam.hackhub.repository;
 
-import unicam.hackhub.model.Judge;
-import unicam.hackhub.model.Mentor;
-import unicam.hackhub.model.StaffMember;
-import unicam.hackhub.model.User;
+import unicam.hackhub.model.*;
 
 import java.util.List;
 
@@ -12,6 +9,8 @@ public interface StaffMemberRepository {
     public List<Mentor> getMentor(Long mentorID);
 
     public Judge getJudge(Long judgeID);
+
+    public Organizer getOrganizer(Long organizerID);
 
     public StaffMember findByID(Long staffMemberID);
 

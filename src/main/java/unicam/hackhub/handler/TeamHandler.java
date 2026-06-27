@@ -34,6 +34,21 @@ public class TeamHandler {
     }
 
     /**
+     * Gestisce la richiesta di eliminazione team.
+     * Corrisponde al metodo deleteTeam nel sequence diagram.
+     *
+     * @param userID     ID del memebro del team
+     * @param teamID     Id del team da eliminare
+     */
+    public void deleteTeam(Long userID, Long teamID) {
+        try {
+            teamService.deleteTeam(userID, teamID);
+        } catch (IllegalArgumentException e) {
+            System.err.println("createTeam error: " + e.getMessage());
+        }
+    }
+
+    /**
      * Gestisce la richiesta di creazione richiesta supporto.
      * Corrisponde al metodo requiresAssistance nel sequence diagram.
      * @param id        Id della richiesta di supporto

@@ -46,4 +46,9 @@ public class TeamRepositoryImplementation implements TeamRepository {
         for(Team team : entities){teams.add(team);}
         System.out.println("Teams saved");
     }
+
+    @Override
+    public void delete(Team team) {
+        teams.removeIf(t -> t.getId().equals(team.getId()));
+    }
 }

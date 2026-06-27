@@ -11,16 +11,18 @@ public class HackathonService {
     private final HackathonRepository hackathonRepository;
     private final StaffMemberRepository staffMemberRepository;
     private final UserRepository userRepository;
+    private final TeamRepository teamRepository;
     private final RegistrationRepository registrationRepository;
 
 
     public HackathonService(HackathonRepository hackathonRepository,
                             StaffMemberRepository staffMemberRepository,
-                            UserRepository userRepository,
+                            UserRepository userRepository, TeamRepository teamRepository,
                             RegistrationRepository registrationRepository) {
         this.hackathonRepository = hackathonRepository;
         this.staffMemberRepository = staffMemberRepository;
         this.userRepository = userRepository;
+        this.teamRepository = teamRepository;
         this.registrationRepository = registrationRepository;
     }
 
@@ -187,8 +189,33 @@ public class HackathonService {
         return registrations;
     }
 
-    public void declareWinner(Team team){
+    /**
+     * Dichiara il team vincitore seguendo il flusso del sequence diagram:
+     * 1. Verifica che i dati siano corretti
+     * 2. Prende l'organizzatore e il team vincitore
+     * 3. Dichiara il team vincitore
+     */
+    public void declareWinner(Long organizerID, Long teamID){
 
+        // 1. Verifica che i dati siano corretti
+        if (organizerID == null || teamID == null) {
+            throw new IllegalArgumentException("Organizer ID and Team ID cannot be null");
+        }
+
+        // 2. Prende l'organizzatore
+        Organizer organizer = staffMemberRepository.getOrganizer(organizerID);
+        if (organizer == null) {
+            throw new IllegalArgumentException("Organizer not found");
+        }
+
+        // 3. Prende il team vincitore
+        Team winningTeam = teamRepository.findByID(teamID);
+        if (winningTeam == null) {
+            throw new IllegalArgumentException("Team not found");
+        }
+
+        // 4. Dichiara il team vincitore
+        organizer.declareWinner(winningTeam);
     }
 
     public void changeState(HackathonState state) {
