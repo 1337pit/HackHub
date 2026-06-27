@@ -12,10 +12,7 @@ import unicam.hackhub.model.Mentor;
 import unicam.hackhub.model.StaffMember;
 import unicam.hackhub.model.Submission;
 import unicam.hackhub.model.Team;
-import unicam.hackhub.repository.HackathonRepository;
-import unicam.hackhub.repository.StaffMemberRepository;
-import unicam.hackhub.repository.SubmissionRepository;
-import unicam.hackhub.repository.TeamRepository;
+import unicam.hackhub.repository.*;
 import unicam.hackhub.service.SubmissionService;
 
 import java.util.List;
@@ -38,6 +35,9 @@ class SubmissionServiceTest {
     @Mock
     private HackathonRepository hackathonRepository;
 
+    @Mock
+    private UserRepository userRepository;
+
     private SubmissionService submissionService;
 
     private Team team;
@@ -45,7 +45,7 @@ class SubmissionServiceTest {
 
     @BeforeEach
     void setUp() {
-        submissionService = new SubmissionService(submissionRepository, teamRepository, staffMemberRepository, hackathonRepository);
+        submissionService = new SubmissionService(submissionRepository, teamRepository, staffMemberRepository, userRepository, hackathonRepository);
 
         team = new Team(1L, "Team Alpha", List.of());
         submission = new Submission(1L, "Initial Submission");

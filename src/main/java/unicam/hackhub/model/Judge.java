@@ -24,7 +24,7 @@ public class Judge implements StaffMember, HackathonObserver {
     @Override
     public void update(HackathonState newState) {
         if (newState instanceof EvaluationState) {
-            System.out.println("Judge [" + name + "] notified: valuation phase started. You can now evaluate submissions.");
+            System.out.println("Judge [" + name + "] notificato: Ora è possibile iniziare a valutare le sottomissioni.");
         }
     }
 

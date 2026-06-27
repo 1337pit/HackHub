@@ -5,7 +5,7 @@ import unicam.hackhub.repository.HackathonRepository;
 import unicam.hackhub.repository.TeamRepository;
 import unicam.hackhub.repository.UserRepository;
 
-import java.lang.reflect.Member;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,17 +16,22 @@ public class TeamService {
     private final HackathonRepository hackathonRepository;
     private final InviteService inviteService;
     private final UserService userService;
+    private final CalendarService calendarService;
 
     private static long idCounter = 1;
 
     public TeamService(UserRepository userRepository,
-                       TeamRepository teamRepository, HackathonRepository hackathonRepository,
-                       InviteService inviteService, UserService userService) {
+                       TeamRepository teamRepository,
+                       HackathonRepository hackathonRepository,
+                       InviteService inviteService,
+                       UserService userService,
+                       CalendarService calendarService) {
         this.userRepository = userRepository;
         this.teamRepository = teamRepository;
         this.hackathonRepository = hackathonRepository;
         this.inviteService = inviteService;
         this.userService = userService;
+        this.calendarService = calendarService;
     }
 
     /**
@@ -211,47 +216,17 @@ public class TeamService {
     /**
      * Crea una richiesta di supporto seguendo il flusso del sequence diagram:
      * 1. Verifica che i dati siano corretti
-     * 2. Prende il mentore scelto dal team
-     * 3. Prende lo slot scelto dal team
-     * 4. Crea la richiesta di supporto
+     * 2. Delega a CalendarService la verifica disponibilità e la prenotazione
+     *    su Google Calendar
      */
-    public RequestSupport requiresAssistance(Long id, Long hackathonID, Long userID, Long teamID, Long mentorID) {
-
-        // 1. Verifica che i dati siano corretti
-        if (id == null || hackathonID == null  || userID == null || teamID == null || mentorID == null)
+    public SupportRequest requiresAssistance(Long hackathonID, Long userID,
+                                             Long teamID, Long mentorID,
+                                             LocalDate date) {
+        if (hackathonID == null || userID == null || teamID == null
+                || mentorID == null || date == null)
             throw new IllegalArgumentException("Data cannot be null");
 
-        // 2. Prende l'hackathon
-        Hackathon hackathon = hackathonRepository.findByID(hackathonID);
-
-        // 3. Prende la lista dei mentori dell'hackathon
-        List<Mentor> listMentors = hackathon.getListMentors();
-
-        // 4. Prende il mentore scelto dal membro del team
-        Mentor chosenMentor = null;
-        while (chosenMentor == null) {
-            chosenMentor = hackathon.selectMentor(listMentors);
-        }
-
-        // 5. Prende la lista degli slot disponibili
-        List<Mentor.Slot> listSlotsAvailable = chosenMentor.getSlotsAvailable(chosenMentor.getListSlots());
-
-        // 6. Prende lo slot scelto dal membro del team
-        Mentor.Slot chosenSlot = null;
-        while (chosenSlot == null) {
-            if (listSlotsAvailable.isEmpty()) {
-                System.out.println("Tutti gli slot sono pieni");
-                break;
-            }
-            chosenSlot = chosenMentor.selectSlot(listSlotsAvailable);
-        }
-
-        // 7. Crea la richiesta di supporto
-        RequestSupport requestSupport = new RequestSupport(id, chosenSlot, hackathonID, userID, teamID, mentorID);
-
-        System.out.println("Sent request support: " + requestSupport);
-
-        return requestSupport;
+        return calendarService.bookDate(mentorID, teamID, hackathonID, userID, date);
     }
 
     public Team getTeamByUser(User user) {

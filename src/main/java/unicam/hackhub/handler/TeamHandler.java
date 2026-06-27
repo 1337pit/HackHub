@@ -5,6 +5,8 @@ import unicam.hackhub.model.Team;
 import unicam.hackhub.model.User;
 import unicam.hackhub.service.TeamService;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public class TeamHandler {
@@ -81,15 +83,14 @@ public class TeamHandler {
     /**
      * Gestisce la richiesta di creazione richiesta supporto.
      * Corrisponde al metodo requiresAssistance nel sequence diagram.
-     * @param id        Id della richiesta di supporto
      * @param hackathonID  Id dell'hackathon
      * @param userID  Id del membro del team
      * @param teamID  Id del team
      * @param mentorID  Id del mentore
      */
-    public void requiresAssistance(Long id, Long hackathonID, Long userID, Long teamID, Long mentorID) {
+    public void requiresAssistance(Long hackathonID, Long userID, Long teamID, Long mentorID, LocalDate date) {
         try {
-            teamService.requiresAssistance(id, hackathonID, userID, teamID, mentorID);
+            teamService.requiresAssistance(hackathonID, userID, teamID, mentorID, date);
         } catch (IllegalArgumentException e) {
             System.err.println("requiresAssistance error: " + e.getMessage());
         }

@@ -44,8 +44,8 @@ public class HackathonRepositoryImplementation implements HackathonRepository {
                 assigned = true;
             }
 
-            if (hackathon.getMentor() != null) {
-                for (Mentor mentor : hackathon.getMentor()) {
+            if (hackathon.getListMentors() != null) {
+                for (Mentor mentor : hackathon.getListMentors()) {
                     if (mentor.getId().equals(staffMemberID)) {
                         assigned = true;
                         break;

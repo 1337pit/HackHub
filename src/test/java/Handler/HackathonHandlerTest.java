@@ -153,23 +153,28 @@ public class HackathonHandlerTest {
     @Test
     void declareWinner_Success() {
         // Arrange
-        doNothing().when(hackathonService).declareWinner(mockTeam);
+        Long organizerID    = 1L;
+        Long winningTeamID  = 10L;
+        doNothing().when(hackathonService).declareWinner(organizerID, winningTeamID);
 
         // Act
-        hackathonHandler.declareWinner(mockTeam);
+        hackathonHandler.declareWinner(organizerID, winningTeamID);
 
         // Assert
-        verify(hackathonService, times(1)).declareWinner(mockTeam);
+        verify(hackathonService, times(1)).declareWinner(organizerID, winningTeamID);
     }
 
     @Test
     void declareWinner_Exception_Handled() {
         // Arrange
-        doThrow(new IllegalArgumentException("Team non valido")).when(hackathonService).declareWinner(mockTeam);
+        Long organizerID    = 1L;
+        Long winningTeamID  = 10L;
+        doThrow(new IllegalArgumentException("Team non valido"))
+                .when(hackathonService).declareWinner(organizerID, winningTeamID);
 
         // Act & Assert
-        assertDoesNotThrow(() -> hackathonHandler.declareWinner(mockTeam));
-        verify(hackathonService, times(1)).declareWinner(mockTeam);
+        assertDoesNotThrow(() -> hackathonHandler.declareWinner(organizerID, winningTeamID));
+        verify(hackathonService, times(1)).declareWinner(organizerID, winningTeamID);
     }
 
     // --- TEST PER getParticipants ---

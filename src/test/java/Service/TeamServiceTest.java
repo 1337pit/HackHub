@@ -4,16 +4,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.internal.matchers.Null;
 import org.mockito.junit.jupiter.MockitoExtension;
 import unicam.hackhub.model.Invite;
 import unicam.hackhub.model.Team;
 import unicam.hackhub.model.User;
-import unicam.hackhub.repository.InviteRepository;
+import unicam.hackhub.repository.HackathonRepository;
 import unicam.hackhub.repository.TeamRepository;
 import unicam.hackhub.repository.UserRepository;
+import unicam.hackhub.service.CalendarService;
 import unicam.hackhub.service.InviteService;
 import unicam.hackhub.service.TeamService;
 import unicam.hackhub.service.UserService;
@@ -24,33 +23,16 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-/**
- * Test unitari per TeamService.
- *
- * Copre tutti i flussi del sequence diagram "createTeam":
- *  - [break] User not found
- *  - [break] User already in a team
- *  - [break] Team name already used
- *  - [opt/loop] Inviti ai membri iniziali
- *  - Happy path: team creato con successo
- */
 @ExtendWith(MockitoExtension.class)
 class TeamServiceTest {
 
-    @Mock
-    private UserRepository userRepository;
+    @Mock private UserRepository userRepository;
+    @Mock private TeamRepository teamRepository;
+    @Mock private HackathonRepository hackathonRepository;
+    @Mock private InviteService inviteService;
+    @Mock private UserService userService;
+    @Mock private CalendarService calendarService;
 
-    @Mock
-    private TeamRepository teamRepository;
-
-    @Mock
-    private InviteService inviteService;
-
-    @Mock
-    private UserService userService;
-
-    // Non si può usare @InjectMocks perché TeamService non ha un costruttore no-arg;
-    // istanziamo manualmente nel @BeforeEach.
     private TeamService teamService;
 
     private User leader;
@@ -59,7 +41,8 @@ class TeamServiceTest {
 
     @BeforeEach
     void setUp() {
-        teamService = new TeamService(userRepository, teamRepository, inviteService, userService);
+        teamService = new TeamService(userRepository, teamRepository,
+                hackathonRepository, inviteService, userService, calendarService);
 
         leader  = new User(1L, "Alice", "alice@test.it");
         memberA = new User(2L, "Bob",   "bob@test.it");

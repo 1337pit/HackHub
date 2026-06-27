@@ -19,7 +19,7 @@ public class Organizer implements StaffMember {
     }
 
     public void declareWinner(Team team) {
-        System.out.println("Winner team: " + team + ", for the hackathon: " + hackathon);
+        System.out.println("Team Vincente: " + team);
     }
 
 //    public void evaluateReport(ViolationReport report) {

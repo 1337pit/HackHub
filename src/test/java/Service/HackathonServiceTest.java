@@ -22,6 +22,7 @@ public class HackathonServiceTest {
     private Organizer organizer;
     private Hackathon hackathon;
     private RegistrationRepository registrationRepository;
+    private TeamRepository teamRepository;
 
     @BeforeEach
     void setUp() {
@@ -29,11 +30,13 @@ public class HackathonServiceTest {
         staffMemberRepository = new StaffMemberRepositoryImplementation();
         userRepository = new UserRepositoryImplementation();
         registrationRepository = new RegistrationRepositoryImplementation();
+        teamRepository = new TeamRepositoryImplementation();
 
         hackathonService = new HackathonService(
                 hackathonRepository,
                 staffMemberRepository,
                 userRepository,
+                teamRepository,
                 registrationRepository
         );
         organizer = new Organizer(1L, "Organizer");

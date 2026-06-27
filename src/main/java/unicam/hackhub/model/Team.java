@@ -39,11 +39,11 @@ public class Team implements HackathonObserver {
     @Override
     public void update(HackathonState newState) {
         if (newState instanceof InProgressState) {
-            System.out.println("Team [" + teamName + "] notified: hackathon started. You can now upload your submission.");
+            System.out.println("Team [" + teamName + "] notificato: Ora si possono aggiungere sottomissioni");
         } else if (newState instanceof EvaluationState) {
-            System.out.println("Team [" + teamName + "] notified: submission phase ended. Waiting for evaluation.");
+            System.out.println("Team [" + teamName + "] notificato: In attesa della valutazione...");
         } else if (newState instanceof ConcludedState) {
-            System.out.println("Team [" + teamName + "] notified: hackathon concluded. Check the results.");
+            System.out.println("Team [" + teamName + "] notified: Hackathon concluso, è possibile visualizzare i risultati");
         }
     }
 
