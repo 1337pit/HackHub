@@ -108,4 +108,90 @@ class TeamHandlerTest {
 
         verify(teamService).createTeam(1L, "Beta", members);
     }
+
+    // -----------------------------------------------------------------------
+    // BAN TEAM
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("banTeam - delega correttamente al service")
+    void banTeam_success() {
+        doNothing().when(teamService).banTeam(10L);
+
+        teamHandler.banTeam(10L);
+
+        verify(teamService).banTeam(10L);
+    }
+
+    @Test
+    @DisplayName("banTeam - eccezione del service - viene gestita")
+    void banTeam_serviceThrows_isHandled() {
+        doThrow(new IllegalArgumentException("Team does not exist"))
+                .when(teamService).banTeam(99L);
+
+        assertDoesNotThrow(() -> teamHandler.banTeam(99L));
+
+        verify(teamService).banTeam(99L);
+    }
+
+    // -----------------------------------------------------------------------
+    // EDIT TEAM INFO
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("editTeamInfo - restituisce il team modificato")
+    void editTeamInfo_success() {
+        Team expectedTeam = new Team(
+                10L,
+                "New Name",
+                List.of(leader)
+        );
+
+        when(teamService.editTeamInfo(
+                1L,
+                10L,
+                "New Name"
+        )).thenReturn(expectedTeam);
+
+        Team result = teamHandler.editTeamInfo(
+                1L,
+                10L,
+                "New Name"
+        );
+
+        assertNotNull(result);
+        assertEquals(expectedTeam, result);
+
+        verify(teamService).editTeamInfo(
+                1L,
+                10L,
+                "New Name"
+        );
+    }
+
+    @Test
+    @DisplayName("editTeamInfo - eccezione del service - restituisce null")
+    void editTeamInfo_serviceThrows_returnsNull() {
+        when(teamService.editTeamInfo(
+                1L,
+                10L,
+                "New Name"
+        )).thenThrow(
+                new IllegalArgumentException("User is not in this team")
+        );
+
+        Team result = teamHandler.editTeamInfo(
+                1L,
+                10L,
+                "New Name"
+        );
+
+        assertNull(result);
+
+        verify(teamService).editTeamInfo(
+                1L,
+                10L,
+                "New Name"
+        );
+    }
 }

@@ -49,6 +49,36 @@ public class TeamHandler {
     }
 
     /**
+     * Gestisce la richiesta di bandire un team.
+     *
+     * @param teamID ID del team da bandire
+     */
+    public void banTeam(Long teamID) {
+        try {
+            teamService.banTeam(teamID);
+        } catch (IllegalArgumentException e) {
+            System.err.println("banTeam error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Gestisce la modifica delle informazioni di un team.
+     *
+     * @param userID  ID dell'utente
+     * @param teamID  ID del team
+     * @param newName nuovo nome del team
+     * @return team modificato oppure null in caso di errore
+     */
+    public Team editTeamInfo(Long userID, Long teamID, String newName) {
+        try {
+            return teamService.editTeamInfo(userID, teamID, newName);
+        } catch (IllegalArgumentException e) {
+            System.err.println("editTeamInfo error: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Gestisce la richiesta di creazione richiesta supporto.
      * Corrisponde al metodo requiresAssistance nel sequence diagram.
      * @param id        Id della richiesta di supporto

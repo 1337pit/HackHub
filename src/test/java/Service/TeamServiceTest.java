@@ -267,4 +267,146 @@ class TeamServiceTest {
 
         assertEquals("Team name cannot be empty or blank", ex.getMessage());
     }
+
+    // -----------------------------------------------------------------------
+    // BAN TEAM
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("banTeam - team esistente - rimuove i membri dal team")
+    void banTeam_success() {
+        Team team = new Team(10L, "Alpha", List.of(leader, memberA));
+
+        leader.setCurrentTeam(team);
+        memberA.setCurrentTeam(team);
+
+        when(teamRepository.findByID(10L)).thenReturn(team);
+
+        teamService.banTeam(10L);
+
+        assertNull(leader.getCurrentTeam());
+        assertNull(memberA.getCurrentTeam());
+        assertTrue(team.getMembers().isEmpty());
+
+        verify(userRepository).save(leader);
+        verify(userRepository).save(memberA);
+        verify(teamRepository).save(team);
+    }
+
+    @Test
+    @DisplayName("banTeam - team inesistente - lancia eccezione")
+    void banTeam_teamNotFound_throwsException() {
+        when(teamRepository.findByID(99L)).thenReturn(null);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> teamService.banTeam(99L)
+        );
+
+        verify(teamRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("banTeam - ID nullo - lancia eccezione")
+    void banTeam_nullID_throwsException() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> teamService.banTeam((Long) null)
+        );
+
+        verifyNoInteractions(teamRepository);
+    }
+
+    // -----------------------------------------------------------------------
+    // EDIT TEAM INFO
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("editTeamInfo - dati validi - modifica il nome del team")
+    void editTeamInfo_success() {
+        Team team = new Team(10L, "Old Name", List.of(leader));
+        leader.setCurrentTeam(team);
+
+        when(userRepository.findByID(1L)).thenReturn(leader);
+        when(teamRepository.findByID(10L)).thenReturn(team);
+        when(teamRepository.findByName("New Name")).thenReturn(null);
+        when(teamRepository.save(team)).thenReturn(team);
+
+        Team result = teamService.editTeamInfo(
+                1L,
+                10L,
+                "New Name"
+        );
+
+        assertNotNull(result);
+        assertEquals("New Name", result.getTeamName());
+
+        verify(teamRepository).save(team);
+    }
+
+    @Test
+    @DisplayName("editTeamInfo - utente non appartenente al team - lancia eccezione")
+    void editTeamInfo_userNotInTeam_throwsException() {
+        Team team = new Team(10L, "Alpha", List.of());
+
+        when(userRepository.findByID(1L)).thenReturn(leader);
+        when(teamRepository.findByID(10L)).thenReturn(team);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> teamService.editTeamInfo(
+                        1L,
+                        10L,
+                        "New Name"
+                )
+        );
+
+        verify(teamRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("editTeamInfo - nome già utilizzato - lancia eccezione")
+    void editTeamInfo_duplicateName_throwsException() {
+        Team team = new Team(10L, "Alpha", List.of(leader));
+        Team existingTeam = new Team(11L, "Beta", List.of());
+
+        leader.setCurrentTeam(team);
+
+        when(userRepository.findByID(1L)).thenReturn(leader);
+        when(teamRepository.findByID(10L)).thenReturn(team);
+        when(teamRepository.findByName("Beta")).thenReturn(existingTeam);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> teamService.editTeamInfo(
+                        1L,
+                        10L,
+                        "Beta"
+                )
+        );
+
+        verify(teamRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("editTeamInfo - dati non validi - lancia eccezione")
+    void editTeamInfo_invalidData_throwsException() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> teamService.editTeamInfo(
+                        null,
+                        10L,
+                        "New Name"
+                )
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> teamService.editTeamInfo(
+                        1L,
+                        10L,
+                        "   "
+                )
+        );
+    }
 }

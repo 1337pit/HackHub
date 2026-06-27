@@ -128,6 +128,25 @@ public class TeamService {
     }
 
     /**
+     * Bandisce un team tramite il suo ID.
+     *
+     * @param teamID ID del team da bandire
+     */
+    public void banTeam(Long teamID) {
+        if (teamID == null) {
+            throw new IllegalArgumentException("Team ID cannot be null");
+        }
+
+        Team team = teamRepository.findByID(teamID);
+
+        if (team == null) {
+            throw new IllegalArgumentException("Team does not exist");
+        }
+
+        banTeam(team);
+    }
+
+    /**
      * Rimuove un team (usato da Organizer.banTeam).
      */
     public void banTeam(Team team) {
@@ -145,6 +164,48 @@ public class TeamService {
         // Salva il team aggiornato (senza membri)
         team.setMembers(new ArrayList<>());
         teamRepository.save(team);
+    }
+
+    /**
+     * Modifica il nome di un team.
+     *
+     * @param userID  ID dell'utente che richiede la modifica
+     * @param teamID  ID del team
+     * @param newName nuovo nome del team
+     * @return team modificato
+     */
+    public Team editTeamInfo(Long userID, Long teamID, String newName) {
+        if (userID == null
+                || teamID == null
+                || newName == null
+                || newName.isBlank()) {
+            throw new IllegalArgumentException("Invalid team data");
+        }
+
+        User user = userRepository.findByID(userID);
+        Team team = teamRepository.findByID(teamID);
+
+        if (user == null || team == null) {
+            throw new IllegalArgumentException("Invalid team data");
+        }
+
+        Team currentTeam = user.getCurrentTeam();
+
+        if (currentTeam == null
+                || !teamID.equals(currentTeam.getId())) {
+            throw new IllegalArgumentException("User is not in this team");
+        }
+
+        Team existingTeam = teamRepository.findByName(newName);
+
+        if (existingTeam != null
+                && !teamID.equals(existingTeam.getId())) {
+            throw new IllegalArgumentException("Team name already used");
+        }
+
+        team.setTeamName(newName);
+
+        return teamRepository.save(team);
     }
 
     /**
