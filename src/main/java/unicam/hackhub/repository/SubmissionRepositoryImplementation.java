@@ -43,4 +43,9 @@ public class SubmissionRepositoryImplementation implements SubmissionRepository 
         System.out.println("Submissions saved");
     }
 
+    @Override
+    public void delete(Submission submission) {
+        submissions.removeIf(s -> s.getId().equals(submission.getId()));
+    }
+
 }

@@ -28,6 +28,22 @@ public class SubmissionHandler {
     }
 
     /**
+     * Gestisce la richiesta di eliminazione sottomissione.
+     * Corrisponde al metodo deleteSubmission nel sequence diagram.
+     *
+     * @param submissionID ID della sottomissione da eliminare
+     * @param userID       ID del memebro del team
+     * @param teamID       ID del team
+     */
+    public void deleteSubmission(Long submissionID, Long userID, Long teamID) {
+        try {
+            submissionService.deleteSubmission(submissionID, userID, teamID);
+        } catch (IllegalArgumentException e) {
+            System.err.println("deleteSubmission error: " + e.getMessage());
+        }
+    }
+
+    /**
      * Gestisce la richiesta di valutazione di una sottomissione.
      */
     public Evaluation evaluateSubmission(Long judgeID, Long submissionID, int grade, String briefJudgment) {

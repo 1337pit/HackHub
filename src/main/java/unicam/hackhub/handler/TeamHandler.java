@@ -38,13 +38,13 @@ public class TeamHandler {
      * Corrisponde al metodo deleteTeam nel sequence diagram.
      *
      * @param userID     ID del memebro del team
-     * @param teamID     Id del team da eliminare
+     * @param teamID     ID del team da eliminare
      */
     public void deleteTeam(Long userID, Long teamID) {
         try {
             teamService.deleteTeam(userID, teamID);
         } catch (IllegalArgumentException e) {
-            System.err.println("createTeam error: " + e.getMessage());
+            System.err.println("deleteTeam error: " + e.getMessage());
         }
     }
 

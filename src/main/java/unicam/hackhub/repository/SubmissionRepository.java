@@ -2,6 +2,7 @@ package unicam.hackhub.repository;
 
 import unicam.hackhub.model.Evaluation;
 import unicam.hackhub.model.Submission;
+import unicam.hackhub.model.Team;
 
 import java.util.List;
 
@@ -14,5 +15,7 @@ public interface SubmissionRepository {
     public Submission save(Submission entity);
 
     public void saveAll(List<Submission> entities);
+
+    public void delete(Submission submission);
 
 }
