@@ -122,4 +122,39 @@ public class ReportService {
         return reportUpdated;
     }
 
+    /**
+     * Modifica una segnalazione.
+     * Usato nel caso d'uso "Elimina Segnalazione" del Mentore.
+     * 1. Verifica dati validi.
+     * 2. Recupera report e mentore.
+     * 3. Verifica che la segnalazione sia stata creata dal medesimo Mentore.
+     * 4. Elimina la segnalazione.
+     */
+    public void deleteReport(Long reportID, Long mentorID) {
+
+        // 1. Verifica che i dati siano validi
+        if (reportID == null || mentorID == null)
+            throw new IllegalArgumentException("Invalid data");
+
+        // 2. Recupera la segnalazione
+        Report report = reportRepository.findByID(reportID);
+        if (report == null)
+            throw new IllegalArgumentException("Report not found");
+
+        // 3. Recupera il mentore
+        Mentor mentor = staffMemberRepository.getMentor(mentorID);
+        if (mentor == null)
+            throw new IllegalArgumentException("Mentor not found");
+
+        // 4. Verifica che la segnalazione da modificare appartenga al medesimo Mentore
+        if(!mentorID.equals(report.getMentor().getId()))
+            throw new IllegalArgumentException("Mentor has not report");
+
+        // 5. Elimina la segnalazione
+        reportRepository.delete(report);
+
+        System.out.println("Report deleted");
+
+    }
+
 }

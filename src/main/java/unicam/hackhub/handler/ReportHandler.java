@@ -42,7 +42,7 @@ public class ReportHandler {
 
     /**
      * Gestisce la richiesta di modifica segnalazione.
-     * Usato nel caso d'uso "Modifica Team" del Mentore.
+     * Usato nel caso d'uso "Modifica Segnalazione" del Mentore.
      */
     public Report updateReport(Long reportID, Long mentorID, String description) {
         try {
@@ -52,4 +52,17 @@ public class ReportHandler {
             return null;
         }
     }
+
+    /**
+     * Gestisce la richiesta di eliminazione segnalazione.
+     * Usato nel caso d'uso "Elimina Segnalazione" del Mentore.
+     */
+    public void deleteReport(Long reportID, Long mentorID) {
+        try {
+            reportService.deleteReport(reportID, mentorID);
+        } catch (IllegalArgumentException e) {
+            System.err.println("deleteReport error: " + e.getMessage());
+        }
+    }
+
 }

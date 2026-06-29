@@ -37,4 +37,9 @@ public class ReportRepositoryImplementation implements ReportRepository {
     public void saveAll(List<Report> entities) {
         entities.forEach(this::save);
     }
+
+    @Override
+    public void delete(Report report) {
+        reports.removeIf(r -> r.getId().equals(report.getId()));
+    }
 }
