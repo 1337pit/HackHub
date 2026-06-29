@@ -83,4 +83,43 @@ public class ReportService {
 
         return report;
     }
+
+    /**
+     * Modifica una segnalazione.
+     * Usato nel caso d'uso "Modifica Segnalazione" del Mentore.
+     * 1. Verifica dati validi
+     * 2. Recupera report e mentore
+     * 3. Verifica che la segnalazione sia stata creata dal medesimo Mentore.
+     * 4. Delega la modifica al Report
+     * 5. Salva il report modificato
+     */
+    public Report updateReport(Long reportID, Long mentorID, String description) {
+
+        // 1. Verifica che i dati siano validi
+        if (reportID == null || mentorID == null || description == null)
+            throw new IllegalArgumentException("Invalid data");
+
+        // 2. Recupera la segnalazione
+        Report report = reportRepository.findByID(reportID);
+        if (report == null)
+            throw new IllegalArgumentException("Report not found");
+
+        // 3. Recupera il mentore
+        Mentor mentor = staffMemberRepository.getMentor(mentorID);
+        if (mentor == null)
+            throw new IllegalArgumentException("Mentor not found");
+
+        // 4. Verifica che la segnalazione da modificare appartenga al medesimo Mentore
+        if(!mentorID.equals(report.getMentor().getId()))
+            throw new IllegalArgumentException("Mentor has not report");
+
+        // 5. Delega la modifica della segnalazione al Report
+        Report reportUpdated = report.updateReport(report, description);
+
+        // 6. Salva la segnalazione aggiornata
+        reportRepository.save(reportUpdated);
+
+        return reportUpdated;
+    }
+
 }

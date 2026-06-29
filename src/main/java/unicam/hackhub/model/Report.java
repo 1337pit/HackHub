@@ -18,6 +18,14 @@ public class Report {
         this.hackathon = hackathon;
     }
 
+    public Report updateReport(Report report, String description){
+        if (description == null){
+            throw new IllegalArgumentException("Description cannot be null");
+        }
+        report.setDescription(description);
+        return report;
+    }
+
     public Long getId() { return id; }
     public String getDescription() { return description; }
     public Team getTeam() { return team; }

@@ -6,7 +6,7 @@ import java.util.List;
 
 public interface StaffMemberRepository {
 
-    public List<Mentor> getMentor(Long mentorID);
+    public Mentor getMentor(Long mentorID);
 
     public Judge getJudge(Long judgeID);
 

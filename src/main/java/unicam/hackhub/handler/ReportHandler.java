@@ -39,4 +39,17 @@ public class ReportHandler {
             return null;
         }
     }
+
+    /**
+     * Gestisce la richiesta di modifica segnalazione.
+     * Usato nel caso d'uso "Modifica Team" del Mentore.
+     */
+    public Report updateReport(Long reportID, Long mentorID, String description) {
+        try {
+            return reportService.updateReport(reportID, mentorID, description);
+        } catch (IllegalArgumentException e) {
+            System.err.println("updateReport error: " + e.getMessage());
+            return null;
+        }
+    }
 }

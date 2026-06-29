@@ -11,13 +11,13 @@ public class StaffMemberRepositoryImplementation implements StaffMemberRepositor
     private final Set<StaffMember> staffMembers = new HashSet<StaffMember>();
 
     @Override
-    public List<Mentor> getMentor(Long mentorID) {
-        for (StaffMember s : staffMembers) {
-            if (s instanceof Mentor && s.getId().equals(mentorID)) {
-                return List.of((Mentor) s);
-            }
-        }
-        return null;
+    public Mentor getMentor(Long mentorID) {
+        return staffMembers.stream()
+                .filter(s -> s instanceof Mentor)
+                .map(s -> (Mentor) s)
+                .filter(m -> m.getId().equals(mentorID))
+                .findFirst()
+                .orElse(null);
     }
 
     @Override
