@@ -152,4 +152,17 @@ public class HackathonHandler {
             return null;
         }
     }
+
+    /**
+     * Gestisce la richiesta di visualizzare le richieste di supporto di un hackathon.
+     * Usato nel caso d'uso "Visualizza Richieste Supporto" del Mentore.
+     */
+    public List<SupportRequest> getRequestsSupport(Long mentorID, Long hackathonID) {
+        try {
+            return hackathonService.getRequestsSupport(mentorID, hackathonID);
+        } catch (IllegalArgumentException e) {
+            System.err.println("getRequestsSupport error: " + e.getMessage());
+            return null;
+        }
+    }
 }

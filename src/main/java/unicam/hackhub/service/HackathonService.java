@@ -13,17 +13,20 @@ public class HackathonService {
     private final UserRepository userRepository;
     private final TeamRepository teamRepository;
     private final RegistrationRepository registrationRepository;
+    private final SupportRepository supportRepository;
 
 
     public HackathonService(HackathonRepository hackathonRepository,
                             StaffMemberRepository staffMemberRepository,
                             UserRepository userRepository, TeamRepository teamRepository,
-                            RegistrationRepository registrationRepository) {
+                            RegistrationRepository registrationRepository,
+                            SupportRepository supportRepository) {
         this.hackathonRepository = hackathonRepository;
         this.staffMemberRepository = staffMemberRepository;
         this.userRepository = userRepository;
         this.teamRepository = teamRepository;
         this.registrationRepository = registrationRepository;
+        this.supportRepository = supportRepository;
     }
 
     /**
@@ -310,4 +313,37 @@ public class HackathonService {
 
         return submissions;
     }
+
+    /**
+     * Recupera la lista delle richieste di supporto per un hackathon.
+     * Usato nel caso d'uso "Visualizza Richieste Supporto" del Mentore.
+     * 1. Verifica che l'hackathon esista
+     * 2. Recupera le richieste di supporto tramite SupportRepository
+     */
+    public List<SupportRequest> getRequestsSupport(Long mentorID, Long hackathonID) {
+        if (mentorID == null || hackathonID == null)
+            throw new IllegalArgumentException("Mentor ID and hackathon ID cannot be null");
+
+        List<Hackathon> assignedHackathons = getAssignedHackathons(mentorID);
+
+        boolean assigned = false;
+
+        for (Hackathon hackathon : assignedHackathons) {
+            if (hackathon.getId() != null && hackathon.getId().equals(hackathonID)) {
+                assigned = true;
+                break;
+            }
+        }
+
+        if (!assigned)
+            throw new IllegalArgumentException("Hackathon not assigned to mentor");
+
+        List<SupportRequest> requestsSupport = supportRepository.findAllByMentor(mentorID);
+
+        if (requestsSupport == null || requestsSupport.isEmpty())
+            throw new IllegalArgumentException("No request support found");
+
+        return requestsSupport;
+    }
+
 }
