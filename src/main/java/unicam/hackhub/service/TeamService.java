@@ -1,9 +1,7 @@
 package unicam.hackhub.service;
 
 import unicam.hackhub.model.*;
-import unicam.hackhub.repository.HackathonRepository;
-import unicam.hackhub.repository.TeamRepository;
-import unicam.hackhub.repository.UserRepository;
+import unicam.hackhub.repository.*;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -14,6 +12,8 @@ public class TeamService {
     private final UserRepository userRepository;
     private final TeamRepository teamRepository;
     private final HackathonRepository hackathonRepository;
+    private final StaffMemberRepository staffMemberRepository;
+    private final ReportRepository reportRepository;
     private final InviteService inviteService;
     private final UserService userService;
     private final CalendarService calendarService;
@@ -23,12 +23,16 @@ public class TeamService {
     public TeamService(UserRepository userRepository,
                        TeamRepository teamRepository,
                        HackathonRepository hackathonRepository,
+                       StaffMemberRepository staffMemberRepository,
+                       ReportRepository reportRepository,
                        InviteService inviteService,
                        UserService userService,
                        CalendarService calendarService) {
         this.userRepository = userRepository;
         this.teamRepository = teamRepository;
         this.hackathonRepository = hackathonRepository;
+        this.staffMemberRepository = staffMemberRepository;
+        this.reportRepository = reportRepository;
         this.inviteService = inviteService;
         this.userService = userService;
         this.calendarService = calendarService;
@@ -169,6 +173,58 @@ public class TeamService {
         // Salva il team aggiornato (senza membri)
         team.setMembers(new ArrayList<>());
         teamRepository.save(team);
+    }
+
+    /**
+     * Segnala un team seguendo il flusso del sequence diagram:
+     * 1. Verifica che i dati siano validi
+     * 2. Prende il mentore e il team da segnalare
+     * 3. Verifica che il mentore sia stato assegnato al team da segnalare
+     * 4. Crea e salva la sengnalazione
+     */
+    public Report reportTeam(Long mentorID, Long teamID, String descriprion) {
+
+        // 1. Verifica che i dati siano validi
+        if (mentorID == null || teamID == null || descriprion == null) {
+            throw new IllegalArgumentException("Data incorrect");
+        }
+
+        // 2. Prende il mentore
+        Mentor mentor = staffMemberRepository.getMentor(mentorID);
+        if (mentor == null) {
+            throw new IllegalArgumentException("Mentor does not exist");
+        }
+
+        // 3. Prende il team da segnalare
+        Team team = teamRepository.findByID(teamID);
+        if (team == null) {
+            throw new IllegalArgumentException("Team does not exist");
+        }
+
+        // 4. Prende l'hackathon che contiene il team da sengalare
+        Hackathon hackathon = team.getHackathon();
+
+        // 5. Verifica che il mentore sia stato assegnato al team da segnalare
+        List<Mentor> mentorList = hackathon.getListMentors();
+        if (mentorList.isEmpty()) {
+            throw new IllegalArgumentException("Mentor from hackathon does not exist");
+        }
+        Report report = null;
+        for (Mentor mentorHackathon : mentorList) {
+            if (mentorHackathon.getId().equals(mentorID)) {
+                // 6. Crea e salva la sengnalazione
+                report = new Report(null, descriprion, team, mentor, hackathon);
+                reportRepository.save(report);
+                System.out.println("Report has been created and saved");
+            }
+        }
+
+        if (report == null) {
+            throw new IllegalArgumentException("Mentor from hackathon does not exist");
+        }
+
+        return report;
+
     }
 
     /**

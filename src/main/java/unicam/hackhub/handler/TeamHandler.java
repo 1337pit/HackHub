@@ -1,6 +1,7 @@
 package unicam.hackhub.handler;
 
 import unicam.hackhub.model.Hackathon;
+import unicam.hackhub.model.Report;
 import unicam.hackhub.model.Team;
 import unicam.hackhub.model.User;
 import unicam.hackhub.service.TeamService;
@@ -60,6 +61,24 @@ public class TeamHandler {
             teamService.banTeam(teamID);
         } catch (IllegalArgumentException e) {
             System.err.println("banTeam error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Gestisce la richiesta di segnalazione team.
+     * Corrisponde al metodo reportTeam nel sequence diagram.
+     *
+     * @param mentorID     ID del mentore
+     * @param teamID       ID del team da segnalare
+     * @param descriprion  Descrizione della segnalazione
+     * @return Il report creato, o null in caso di errore
+     */
+    public Report reportTeam(Long mentorID, Long teamID, String descriprion) {
+        try {
+            return teamService.reportTeam(mentorID, teamID,descriprion);
+        } catch (IllegalArgumentException e) {
+            System.err.println("reportTeam error: " + e.getMessage());
+            return null;
         }
     }
 
