@@ -23,14 +23,6 @@ public class Team implements HackathonObserver {
         this.members = members;
     }
 
-    public Invite createInvite(Long userID) {
-        return new Invite();
-    }
-
-    public void deleteInvite(Long inviteID) {
-        // TODO
-    }
-
     /**
      * Notifica il Team del cambio di stato dell'Hackathon.
      * Il Team è interessato alla transizione a InProgressState

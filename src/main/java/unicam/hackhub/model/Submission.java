@@ -19,11 +19,6 @@ public class Submission {
         this.submissionOnDate = LocalDate.now();
     }
 
-//    public void updateContent(String content) {
-//        this.content = content;
-//        this.submissionOnDate = LocalDate.now();
-//    }
-
     public Long getId() {
         return id;
     }

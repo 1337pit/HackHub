@@ -23,14 +23,6 @@ public class User {
         return team;
     }
 
-    public void acceptInvite(Long inviteID) {
-        // TODO
-    }
-
-    public void declineInvite(Long inviteID) {
-        // TODO
-    }
-
     public boolean hasTeam() {
         return currentTeam != null;
     }

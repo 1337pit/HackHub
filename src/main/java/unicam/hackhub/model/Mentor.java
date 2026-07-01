@@ -30,14 +30,6 @@ public class Mentor implements StaffMember, HackathonObserver {
         }
     }
 
-    public void proposeCall() {
-        // TODO
-    }
-
-    public void reportTeam(Team team, String description) {
-        // TODO
-    }
-
     public Long getId() { return id; }
     public String getName() { return name; }
     public String getEmail() { return email; }
