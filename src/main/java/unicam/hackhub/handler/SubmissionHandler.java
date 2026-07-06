@@ -1,75 +1,102 @@
 package unicam.hackhub.handler;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import unicam.hackhub.dto.EditEvaluationRequest;
+import unicam.hackhub.dto.EvaluateSubmissionRequest;
 import unicam.hackhub.model.Evaluation;
 import unicam.hackhub.model.Submission;
 import unicam.hackhub.service.SubmissionService;
 
+@RestController
+@RequestMapping("/api/submissions")
 public class SubmissionHandler {
 
-    private SubmissionService submissionService;
+    private final SubmissionService submissionService;
 
-    public SubmissionHandler() {}
-
+    // Grazie all'iniezione da costruttore, submissionService non sarà MAI null.
+    // Rimosso l'obbligo di fare controlli manuali anti-Null.
     public SubmissionHandler(SubmissionService submissionService) {
-
         this.submissionService = submissionService;
     }
 
-    public Submission uploadSubmission(Long teamID, Submission submission) {
-        if (submissionService == null)
-            throw new IllegalStateException("Submission service is not defined");
-        return submissionService.uploadSubmission(teamID, submission);
-    }
+    /**
+     * Carica una nuova sottomissione per un team.
+     * POST /api/submissions/team/5
+     */
+    @PostMapping("/team/{teamId}")
+    public ResponseEntity<Submission> uploadSubmission(
+            @PathVariable Long teamId,
+            @RequestBody Submission submission) {
 
-    public Submission updateSubmission(Long submissionID, String name) {
-        if (submissionService == null)
-            throw new IllegalStateException("Submission service is not defined");
-        return submissionService.updateSubmission(submissionID, name);
+        Submission created = submissionService.uploadSubmission(teamId, submission);
+        return new ResponseEntity<>(created, HttpStatus.CREATED);
     }
 
     /**
-     * Gestisce la richiesta di eliminazione sottomissione.
-     * Corrisponde al metodo deleteSubmission nel sequence diagram.
-     *
-     * @param submissionID ID della sottomissione da eliminare
-     * @param userID       ID del memebro del team
-     * @param teamID       ID del team
+     * Aggiorna il nome di una sottomissione esistente.
+     * PATCH /api/submissions/12/name?name=NuovoTitolo
      */
-    public void deleteSubmission(Long submissionID, Long userID, Long teamID) {
-        try {
-            submissionService.deleteSubmission(submissionID, userID, teamID);
-        } catch (IllegalArgumentException e) {
-            System.err.println("deleteSubmission error: " + e.getMessage());
-        }
+    @PatchMapping("/{submissionId}/name")
+    public ResponseEntity<Submission> updateSubmission(
+            @PathVariable Long submissionId,
+            @RequestParam String name) {
+
+        Submission updated = submissionService.updateSubmission(submissionId, name);
+        return ResponseEntity.ok(updated);
     }
 
     /**
-     * Gestisce la richiesta di valutazione di una sottomissione.
+     * Elimina una sottomissione (Verificando utente e team).
+     * DELETE /api/submissions/12?userId=3&teamId=5
      */
-    public Evaluation evaluateSubmission(Long judgeID, Long submissionID, int grade, String briefJudgment) {
-        if (submissionService == null)
-            throw new IllegalStateException("Submission service is not defined");
-        try {
-            return submissionService.evaluateSubmission(judgeID, submissionID, grade, briefJudgment);
-        } catch (IllegalArgumentException e) {
-            System.err.println("evaluateSubmission error: " + e.getMessage());
-            return null;
-        }
+    @DeleteMapping("/{submissionId}")
+    public ResponseEntity<Void> deleteSubmission(
+            @PathVariable Long submissionId,
+            @RequestParam Long userId,
+            @RequestParam Long teamId) {
+
+        // Rimosso try-catch: l'eccezione bolle al GlobalExceptionHandler
+        submissionService.deleteSubmission(submissionId, userId, teamId);
+        return ResponseEntity.noContent().build(); // Ritorna un pulito 204 No Content
     }
 
     /**
-     * Gestisce la richiesta di modifica dellavalutazione di una sottomissione.
+     * Inserisce la valutazione di un giudice per una sottomissione.
+     * POST /api/submissions/12/evaluate
      */
-    public Evaluation editEvaluateSubmission(Long judgeID, Long submissionID, Long hackathonID,
-                                             Long evaluationID, int grade, String briefJudgment) {
-        if (submissionService == null)
-            throw new IllegalStateException("Submission service is not defined");
-        try {
-            return submissionService.editEvaluateSubmission(judgeID, submissionID, hackathonID,
-                    evaluationID, grade, briefJudgment);
-        } catch (IllegalArgumentException e) {
-            System.err.println("evaluateSubmission error: " + e.getMessage());
-            return null;
-        }
+    @PostMapping("/{submissionId}/evaluate")
+    public ResponseEntity<Evaluation> evaluateSubmission(
+            @PathVariable Long submissionId,
+            @RequestBody EvaluateSubmissionRequest request) {
+
+        Evaluation evaluation = submissionService.evaluateSubmission(
+                request.judgeId(),
+                submissionId,
+                request.grade(),
+                request.briefJudgment()
+        );
+        return new ResponseEntity<>(evaluation, HttpStatus.CREATED);
+    }
+
+    /**
+     * Modifica una valutazione esistente.
+     * PUT /api/submissions/12/evaluate
+     */
+    @PutMapping("/{submissionId}/evaluate")
+    public ResponseEntity<Evaluation> editEvaluateSubmission(
+            @PathVariable Long submissionId,
+            @RequestBody EditEvaluationRequest request) {
+
+        Evaluation updatedEvaluation = submissionService.editEvaluateSubmission(
+                request.judgeId(),
+                submissionId,
+                request.hackathonId(),
+                request.evaluationId(),
+                request.grade(),
+                request.briefJudgment()
+        );
+        return ResponseEntity.ok(updatedEvaluation);
     }
 }

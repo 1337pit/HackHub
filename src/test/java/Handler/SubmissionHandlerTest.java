@@ -3,167 +3,115 @@ package Handler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.Mockito;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import unicam.hackhub.dto.EditEvaluationRequest;
+import unicam.hackhub.dto.EvaluateSubmissionRequest;
 import unicam.hackhub.handler.SubmissionHandler;
 import unicam.hackhub.model.Evaluation;
 import unicam.hackhub.model.Submission;
 import unicam.hackhub.service.SubmissionService;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-/**
- * Test unitari per SubmissionHandler.
- *
- * Verifica che l'handler:
- *  - deleghi correttamente a SubmissionService
- *  - lanci IllegalStateException se il service non è stato impostato
- *  - per evaluateSubmission, catturi le IllegalArgumentException restituendo null
- */
-@ExtendWith(MockitoExtension.class)
 class SubmissionHandlerTest {
 
-    @Mock
     private SubmissionService submissionService;
-
     private SubmissionHandler submissionHandler;
-
-    private Submission submission;
+    private Submission mockSubmission;
+    private Evaluation mockEvaluation;
 
     @BeforeEach
     void setUp() {
+        // Mock istantaneo del servizio ed iniezione diretta nel costruttore
+        submissionService = Mockito.mock(SubmissionService.class);
         submissionHandler = new SubmissionHandler(submissionService);
-        submission = new Submission(1L, "Initial Submission");
+
+        mockSubmission = Mockito.mock(Submission.class);
+        mockEvaluation = Mockito.mock(Evaluation.class);
     }
 
     // -----------------------------------------------------------------------
-    // uploadSubmission
+    // uploadSubmission (POST)
     // -----------------------------------------------------------------------
 
     @Test
-    @DisplayName("uploadSubmission – delega al service e restituisce la submission")
-    void uploadSubmission_delegatesToService_returnsSubmission() {
-        when(submissionService.uploadSubmission(1L, submission)).thenReturn(submission);
+    @DisplayName("uploadSubmission – Successo restituisce 201 Created")
+    void uploadSubmission_Success() {
+        when(submissionService.uploadSubmission(eq(1L), any(Submission.class))).thenReturn(mockSubmission);
 
-        Submission result = submissionHandler.uploadSubmission(1L, submission);
+        ResponseEntity<Submission> response = submissionHandler.uploadSubmission(1L, mockSubmission);
 
-        assertNotNull(result);
-        assertEquals("Initial Submission", result.getName());
-        verify(submissionService).uploadSubmission(1L, submission);
-    }
-
-    @Test
-    @DisplayName("uploadSubmission – service non impostato → IllegalStateException")
-    void uploadSubmission_serviceNotSet_throwsException() {
-        SubmissionHandler handlerWithoutService = new SubmissionHandler();
-
-        assertThrows(IllegalStateException.class,
-                () -> handlerWithoutService.uploadSubmission(1L, submission));
-    }
-
-    @Test
-    @DisplayName("uploadSubmission – il service lancia eccezione → l'handler la propaga")
-    void uploadSubmission_serviceThrows_propagatesException() {
-        when(submissionService.uploadSubmission(anyLong(), any()))
-                .thenThrow(new IllegalArgumentException("Team not found"));
-
-        assertThrows(IllegalArgumentException.class,
-                () -> submissionHandler.uploadSubmission(1L, submission));
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        assertEquals(mockSubmission, response.getBody());
+        verify(submissionService).uploadSubmission(1L, mockSubmission);
     }
 
     // -----------------------------------------------------------------------
-    // updateSubmission
+    // updateSubmission (PATCH)
     // -----------------------------------------------------------------------
 
     @Test
-    @DisplayName("updateSubmission – delega al service e restituisce la submission")
-    void updateSubmission_delegatesToService_returnsSubmission() {
-        when(submissionService.updateSubmission(1L, "Updated")).thenReturn(submission);
+    @DisplayName("updateSubmission – Successo restituisce 200 OK")
+    void updateSubmission_Success() {
+        when(submissionService.updateSubmission(1L, "NuovoTitolo")).thenReturn(mockSubmission);
 
-        Submission result = submissionHandler.updateSubmission(1L, "Updated");
+        ResponseEntity<Submission> response = submissionHandler.updateSubmission(1L, "NuovoTitolo");
 
-        assertNotNull(result);
-        verify(submissionService).updateSubmission(1L, "Updated");
-    }
-
-    @Test
-    @DisplayName("updateSubmission – service non impostato → IllegalStateException")
-    void updateSubmission_serviceNotSet_throwsException() {
-        SubmissionHandler handlerWithoutService = new SubmissionHandler();
-
-        assertThrows(IllegalStateException.class,
-                () -> handlerWithoutService.updateSubmission(1L, "Updated"));
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(mockSubmission, response.getBody());
+        verify(submissionService).updateSubmission(1L, "NuovoTitolo");
     }
 
     // -----------------------------------------------------------------------
-    // evaluateSubmission - Happy path
+    // deleteSubmission (DELETE)
     // -----------------------------------------------------------------------
 
     @Test
-    @DisplayName("evaluateSubmission – valutazione riuscita → restituisce l'Evaluation")
-    void evaluateSubmission_success_returnsEvaluation() {
-        Evaluation expectedEvaluation = new Evaluation("Great work", 8);
-        when(submissionService.evaluateSubmission(1L, 1L, 8, "Great work"))
-                .thenReturn(expectedEvaluation);
+    @DisplayName("deleteSubmission – Successo restituisce 204 No Content")
+    void deleteSubmission_Success() {
+        // Metodo void nel service, facciamo solo il verify
+        ResponseEntity<Void> response = submissionHandler.deleteSubmission(12L, 3L, 5L);
 
-        Evaluation result = submissionHandler.evaluateSubmission(1L, 1L, 8, "Great work");
-
-        assertNotNull(result);
-        assertEquals(8, result.getGrade());
-        verify(submissionService, times(1)).evaluateSubmission(1L, 1L, 8, "Great work");
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+        verify(submissionService).deleteSubmission(12L, 3L, 5L);
     }
 
     // -----------------------------------------------------------------------
-    // evaluateSubmission - Gestione errori: l'handler cattura IllegalArgumentException
-    // e restituisce null
+    // evaluateSubmission (POST)
     // -----------------------------------------------------------------------
 
     @Test
-    @DisplayName("evaluateSubmission – judge non trovato → handler restituisce null")
-    void evaluateSubmission_judgeNotFound_returnsNull() {
-        when(submissionService.evaluateSubmission(anyLong(), anyLong(), anyInt(), any()))
-                .thenThrow(new IllegalArgumentException("Judge not found"));
+    @DisplayName("evaluateSubmission – Successo con DTO restituisce 201 Created")
+    void evaluateSubmission_Success() {
+        EvaluateSubmissionRequest request = new EvaluateSubmissionRequest(2L, 8, "Ottimo lavoro");
+        when(submissionService.evaluateSubmission(2L, 12L, 8, "Ottimo lavoro")).thenReturn(mockEvaluation);
 
-        Evaluation result = submissionHandler.evaluateSubmission(99L, 1L, 8, "Great work");
+        ResponseEntity<Evaluation> response = submissionHandler.evaluateSubmission(12L, request);
 
-        assertNull(result);
-    }
-
-    @Test
-    @DisplayName("evaluateSubmission – submission già valutata → handler restituisce null")
-    void evaluateSubmission_alreadyEvaluated_returnsNull() {
-        when(submissionService.evaluateSubmission(anyLong(), anyLong(), anyInt(), any()))
-                .thenThrow(new IllegalArgumentException("Submission already evaluated"));
-
-        Evaluation result = submissionHandler.evaluateSubmission(1L, 1L, 8, "Great work");
-
-        assertNull(result);
-    }
-
-    @Test
-    @DisplayName("evaluateSubmission – service non impostato → IllegalStateException")
-    void evaluateSubmission_serviceNotSet_throwsException() {
-        SubmissionHandler handlerWithoutService = new SubmissionHandler();
-
-        assertThrows(IllegalStateException.class,
-                () -> handlerWithoutService.evaluateSubmission(1L, 1L, 8, "Great work"));
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        assertEquals(mockEvaluation, response.getBody());
+        verify(submissionService).evaluateSubmission(2L, 12L, 8, "Ottimo lavoro");
     }
 
     // -----------------------------------------------------------------------
-    // evaluateSubmission - Delega: l'handler non fa logica, la lascia tutta al service
+    // editEvaluateSubmission (PUT)
     // -----------------------------------------------------------------------
 
     @Test
-    @DisplayName("evaluateSubmission – i parametri vengono passati intatti al service")
-    void evaluateSubmission_parametersPassedThrough() {
-        Evaluation expectedEvaluation = new Evaluation("Great work", 8);
-        when(submissionService.evaluateSubmission(1L, 1L, 8, "Great work"))
-                .thenReturn(expectedEvaluation);
+    @DisplayName("editEvaluateSubmission – Successo con DTO restituisce 200 OK")
+    void editEvaluateSubmission_Success() {
+        EditEvaluationRequest request = new EditEvaluationRequest(2L, 100L, 50L, 9, "Giudizio modificato");
+        when(submissionService.editEvaluateSubmission(2L, 12L, 100L, 50L, 9, "Giudizio modificato"))
+                .thenReturn(mockEvaluation);
 
-        submissionHandler.evaluateSubmission(1L, 1L, 8, "Great work");
+        ResponseEntity<Evaluation> response = submissionHandler.editEvaluateSubmission(12L, request);
 
-        verify(submissionService).evaluateSubmission(1L, 1L, 8, "Great work");
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(mockEvaluation, response.getBody());
+        verify(submissionService).editEvaluateSubmission(2L, 12L, 100L, 50L, 9, "Giudizio modificato");
     }
 }

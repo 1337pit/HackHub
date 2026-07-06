@@ -1,20 +1,13 @@
 package unicam.hackhub.repository;
 
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 import unicam.hackhub.model.User;
 
 import java.util.List;
+import java.util.Optional;
 
-public interface UserRepository {
-
-    User findByID(Long userID);
-
-    User findByName(String name);
-
-    User findByEmail(String email);
-
-    User save(User entity);
-
-    void saveAll(List<User> entities);
-
-    void delete(User entity);
+@Repository
+public interface UserRepository extends JpaRepository<User, Long> {
+    Optional<User> findByEmail(String email);
 }

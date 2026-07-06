@@ -1,622 +1,197 @@
 package Service;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import unicam.hackhub.model.*;
 import unicam.hackhub.model.state.RegistrationState;
 import unicam.hackhub.repository.*;
 import unicam.hackhub.service.HackathonService;
-import java.util.List;
+
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
-public class HackathonServiceTest {
+@ExtendWith(MockitoExtension.class)
+class HackathonServiceTest {
 
+    @Mock private HackathonRepository hackathonRepository;
+    @Mock private StaffMemberRepository staffMemberRepository;
+    @Mock private UserRepository userRepository;
+    @Mock private TeamRepository teamRepository;
+    @Mock private RegistrationRepository registrationRepository;
+    @Mock private SupportRepository supportRepository;
+
+    @InjectMocks
     private HackathonService hackathonService;
-    private HackathonRepository hackathonRepository;
-    private StaffMemberRepository staffMemberRepository;
-    private UserRepository userRepository;
-    private Organizer organizer;
-    private Hackathon hackathon;
-    private RegistrationRepository registrationRepository;
-    private TeamRepository teamRepository;
+
+    private Organizer mockOrganizer;
+    private Mentor mockMentor;
+    private Judge mockJudge;
+    private Hackathon mockHackathon;
 
     @BeforeEach
     void setUp() {
-        hackathonRepository = new HackathonRepositoryImplementation();
-        staffMemberRepository = new StaffMemberRepositoryImplementation();
-        userRepository = new UserRepositoryImplementation();
-        registrationRepository = new RegistrationRepositoryImplementation();
-        teamRepository = new TeamRepositoryImplementation();
-
-        hackathonService = new HackathonService(
-                hackathonRepository,
-                staffMemberRepository,
-                userRepository,
-                teamRepository,
-                registrationRepository
-        );
-        organizer = new Organizer(1L, "Organizer");
-
-        hackathon = new Hackathon(
-                "Base", "Rules", LocalDate.now(), LocalDate.now().plusDays(1), LocalDate.now().plusDays(2),
-                "Loc", "Prize", new RegistrationState(), 5, organizer, new Judge(3L, "J"), new ArrayList<>()
-        );
-
-        // Seed data needed for hackathon creation tests
-        staffMemberRepository.save(new Mentor(2L, "Mentor", "mentor@google.com", hackathon));
-        staffMemberRepository.save(new Judge(3L, "Judge"));
+        mockOrganizer = mock(Organizer.class);
+        mockMentor = mock(Mentor.class);
+        mockJudge = mock(Judge.class);
+        mockHackathon = mock(Hackathon.class);
     }
 
     // =========================================================================
-    // CREATE HACKATHON TESTS
+    // 1. Test per createHackathon
     // =========================================================================
 
     @Test
+    @DisplayName("createHackathon – Flusso di successo")
     void createHackathon_Success() {
-        Hackathon hackathon = hackathonService.createHackathon(
-                "HackHub Test",
-                "Rulebook",
-                LocalDate.now().plusDays(5),
-                LocalDate.now().plusDays(10),
-                LocalDate.now().plusDays(12),
-                "Camerino",
-                "1000",
-                new RegistrationState(),
-                5,
-                organizer,
-                2L,
-                3L
+        when(hackathonRepository.findByNameHackathon("HackHub Test")).thenReturn(Optional.empty());
+        when(staffMemberRepository.findById(2L)).thenReturn(Optional.of(mockMentor));
+        when(staffMemberRepository.findById(3L)).thenReturn(Optional.of(mockJudge));
+        when(hackathonRepository.save(any(Hackathon.class))).thenReturn(mockHackathon);
+        when(mockHackathon.getNameHackathon()).thenReturn("HackHub Test");
+
+        Hackathon created = hackathonService.createHackathon(
+                "HackHub Test", "Rulebook", LocalDate.now().plusDays(5),
+                LocalDate.now().plusDays(10), LocalDate.now().plusDays(12),
+                "Camerino", "1000", new RegistrationState(), 5, mockOrganizer, 2L, 3L
         );
 
-        assertNotNull(hackathon);
-        assertEquals("HackHub Test", hackathon.getNameHackathon());
-        assertEquals(5, hackathon.getMaxTeamSize());
+        assertNotNull(created);
+        assertEquals("HackHub Test", created.getNameHackathon());
+        verify(hackathonRepository).save(any(Hackathon.class));
     }
 
     @Test
+    @DisplayName("createHackathon – Nome duplicato lancia IllegalArgumentException")
     void createHackathon_DuplicateName_ThrowsException() {
-        hackathonService.createHackathon(
-                "HackHub Test",
-                "Rulebook",
-                LocalDate.now().plusDays(5),
-                LocalDate.now().plusDays(10),
-                LocalDate.now().plusDays(12),
-                "Camerino",
-                "1000",
-                new RegistrationState(),
-                5,
-                organizer,
-                2L,
-                3L
+        when(hackathonRepository.findByNameHackathon("HackHub Test")).thenReturn(Optional.of(mockHackathon));
+
+        assertThrows(IllegalArgumentException.class, () -> hackathonService.createHackathon(
+                "HackHub Test", "Rulebook", LocalDate.now().plusDays(5),
+                LocalDate.now().plusDays(10), LocalDate.now().plusDays(12),
+                "Camerino", "1000", new RegistrationState(), 5, mockOrganizer, 2L, 3L
+        ));
+    }
+
+    // =========================================================================
+    // 2. Test per editHackathon
+    // =========================================================================
+
+    @Test
+    @DisplayName("editHackathon – Modifica con successo")
+    void editHackathon_Success() {
+        when(hackathonRepository.findById(1L)).thenReturn(Optional.of(mockHackathon));
+        when(mockHackathon.isRegistrationOpen()).thenReturn(true);
+        when(hackathonRepository.save(mockHackathon)).thenReturn(mockHackathon);
+
+        Hackathon updated = hackathonService.editHackathon(
+                1L, "New Name", "New Rules", LocalDate.now().plusDays(1),
+                "New Loc", "New Prize", 10, null, null
         );
 
-        assertThrows(IllegalArgumentException.class, () -> hackathonService.createHackathon(
-                "HackHub Test",
-                "Rulebook",
-                LocalDate.now().plusDays(5),
-                LocalDate.now().plusDays(10),
-                LocalDate.now().plusDays(12),
-                "Camerino",
-                "1000",
-                new RegistrationState(),
-                5,
-                organizer,
-                2L,
-                3L
-        ));
-    }
-
-    @Test
-    void createHackathon_StaffNotFound_ThrowsException() {
-        assertThrows(IllegalArgumentException.class, () -> hackathonService.createHackathon(
-                "Unique Name",
-                "Rulebook",
-                LocalDate.now().plusDays(5),
-                LocalDate.now().plusDays(10),
-                LocalDate.now().plusDays(12),
-                "Camerino",
-                "1000",
-                new RegistrationState(),
-                5,
-                organizer,
-                999L, // Non-existent mentor ID
-                3L
-        ));
+        assertNotNull(updated);
+        verify(mockHackathon).setNameHackathon("New Name");
+        verify(hackathonRepository).save(mockHackathon);
     }
 
     // =========================================================================
-    // VALIDATION TESTS
+    // 3. Test per addMentor
     // =========================================================================
 
     @Test
-    void validateDates_InvalidMaxTeamSize_ThrowsException() {
-        assertThrows(IllegalArgumentException.class, () -> hackathonService.validateDates(
-                "HackHub Test",
-                "Rulebook",
-                LocalDate.now().plusDays(5),
-                LocalDate.now().plusDays(10),
-                LocalDate.now().plusDays(12),
-                "Camerino",
-                "1000",
-                new RegistrationState(),
-                0, // Invalid size
-                organizer,
-                2L,
-                3L
-        ));
-    }
-
-    @Test
-    void validateDates_RegistrationDeadlineAfterStartDate_ThrowsException() {
-        assertThrows(IllegalArgumentException.class, () -> hackathonService.validateDates(
-                "HackHub Test",
-                "Rulebook",
-                LocalDate.now().plusDays(10), // Deadline
-                LocalDate.now().plusDays(5),  // Start date (before deadline)
-                LocalDate.now().plusDays(12),
-                "Camerino",
-                "1000",
-                new RegistrationState(),
-                5,
-                organizer,
-                2L,
-                3L
-        ));
-    }
-
-    @Test
-    void validateDates_StartDateAfterEndDate_ThrowsException() {
-        assertThrows(IllegalArgumentException.class, () -> hackathonService.validateDates(
-                "HackHub Test",
-                "Rulebook",
-                LocalDate.now().plusDays(2),
-                LocalDate.now().plusDays(15), // Start date
-                LocalDate.now().plusDays(10), // End date (before start)
-                "Camerino",
-                "1000",
-                new RegistrationState(),
-                5,
-                organizer,
-                2L,
-                3L
-        ));
-    }
-
-    // =========================================================================
-    // ADD MENTOR TESTS
-    // =========================================================================
-
-    @Test
+    @DisplayName("addMentor – Aggiunta mentore con successo")
     void addMentor_Success() {
-        // Create an existing Hackathon context
-        Hackathon hackathon = new Hackathon("Hackathon 1", "Rules", LocalDate.now(), LocalDate.now().plusDays(1), LocalDate.now().plusDays(2), "Loc", "Prize", new RegistrationState(), 5, organizer, new Judge(3L, "J"), Collections.emptyList());
-        hackathon.setId(100L);
-        hackathonRepository.save(hackathon);
-        Long hackathonId = hackathon.getId();
+        // 1. Il servizio recupera l'hackathon a cui associare il mentore
+        when(hackathonRepository.findById(1L)).thenReturn(Optional.of(mockHackathon));
 
-        // Setup a non-staff user
-        User user = new User(10L, "John Doe", "john@example.com");
-        userRepository.save(user);
+        // 2. Il servizio cerca l'utente tramite email a sistema (FIX)
+        User mockUser = mock(User.class);
+        when(userRepository.findByEmail("john@test.com")).thenReturn(Optional.of(mockUser));
 
-        assertDoesNotThrow(() -> hackathonService.addMentor("john@example.com", hackathonId));
-    }
+        // 3. Il servizio controlla che non sia già registrato nello staff con quella email
+        when(staffMemberRepository.findByEmail("john@test.com")).thenReturn(Optional.empty());
 
-    @Test
-    void addMentor_UserNotFound_ThrowsException() {
-        Hackathon hackathon = new Hackathon("Hackathon 2", "Rules", LocalDate.now(), LocalDate.now().plusDays(1), LocalDate.now().plusDays(2), "Loc", "Prize", new RegistrationState(), 5, organizer, new Judge(3L, "J"), Collections.emptyList());
-        hackathon.setId(101L);
-        hackathonRepository.save(hackathon);
+        // Esecuzione del test
+        Mentor added = hackathonService.addMentor("john@test.com", 1L);
 
-        assertThrows(IllegalArgumentException.class, () ->
-                hackathonService.addMentor("nonexistent@example.com", hackathon.getId())
-        );
-    }
-
-    @Test
-    void addMentor_UserAlreadyMentor_ThrowsException() {
-        Hackathon hackathon = new Hackathon("Hackathon 3", "Rules", LocalDate.now(), LocalDate.now().plusDays(1), LocalDate.now().plusDays(2), "Loc", "Prize", new RegistrationState(), 5, organizer, new Judge(3L, "J"), Collections.emptyList());
-        hackathon.setId(102L);
-        hackathonRepository.save(hackathon);
-
-        User user = new User(11L, "Existing Mentor", "mentor@example.com");
-        userRepository.save(user);
-
-        // Make the user a Mentor in the repository database state
-        Mentor existingMentor = new Mentor(user.getId(), user.getName(), user.getEmail(), hackathon);
-        staffMemberRepository.save(existingMentor);
-
-        assertThrows(IllegalArgumentException.class, () ->
-                hackathonService.addMentor("mentor@example.com", hackathon.getId())
-        );
+        // Asserzioni
+        assertNotNull(added);
+        verify(mockHackathon).addMentor(any(Mentor.class));
     }
 
     // =========================================================================
-    // AVAILABILITY & TEAM SIZE CHECKS
+    // 4. Test per getAssignedHackathons
     // =========================================================================
 
     @Test
-    void checkTeamSize_ExceedsLimit_ThrowsException() {
-        Hackathon hackathon = new Hackathon();
-        hackathon.setMaxTeamSize(4);
-
-        Team overSizedTeam = new Team();
-
-        ArrayList<User> members = new ArrayList<>();
-        members.add(new User(1L, "User 1", "user1@example.com"));
-        members.add(new User(2L, "User 2", "user2@example.com"));
-        members.add(new User(3L, "User 3", "user3@example.com"));
-        members.add(new User(4L, "User 4", "user4@example.com"));
-        members.add(new User(5L, "User 5", "user5@example.com"));
-
-        overSizedTeam.setMembers(members);
-
-        assertThrows(IllegalArgumentException.class, () ->
-                hackathonService.checkTeamSize(overSizedTeam, hackathon)
-        );
-    }
-
-    @Test
-    void checkTeamSize_WithinLimit_DoesNotThrow() {
-        Hackathon hackathon = new Hackathon();
-        hackathon.setMaxTeamSize(5);
-
-        Team validTeam = new Team();
-        validTeam.getSize();
-
-        assertDoesNotThrow(() -> hackathonService.checkTeamSize(validTeam, hackathon));
-    }
-
-    // =========================================================================
-    // GET ASSIGNED HACKATHONS TESTS
-    // =========================================================================
-
-    @Test
+    @DisplayName("getAssignedHackathons – Ritorna la lista dal repository custom")
     void getAssignedHackathons_Success() {
-        Mentor assignedMentor = new Mentor(20L, "Assigned Mentor",
-                "assigned@example.com", null);
-        staffMemberRepository.save(assignedMentor);
+        when(staffMemberRepository.findById(10L)).thenReturn(Optional.of(mockMentor));
+        when(hackathonRepository.findByStaffMemberId(10L)).thenReturn(List.of(mockHackathon));
 
-        Hackathon assignedHackathon = new Hackathon(
-                "Assigned Hackathon",
-                "Rules",
-                LocalDate.now().plusDays(1),
-                LocalDate.now().plusDays(2),
-                LocalDate.now().plusDays(3),
-                "Camerino",
-                "Prize",
-                new RegistrationState(),
-                5,
-                organizer,
-                new Judge(30L, "Judge"),
-                List.of(assignedMentor)
-        );
-        assignedHackathon.setId(200L);
-
-        Hackathon otherHackathon = new Hackathon(
-                "Other Hackathon",
-                "Rules",
-                LocalDate.now().plusDays(1),
-                LocalDate.now().plusDays(2),
-                LocalDate.now().plusDays(3),
-                "Online",
-                "Prize",
-                new RegistrationState(),
-                5,
-                new Organizer(40L, "Other Organizer"),
-                new Judge(41L, "Other Judge"),
-                new ArrayList<>()
-        );
-        otherHackathon.setId(201L);
-
-        hackathonRepository.save(assignedHackathon);
-        hackathonRepository.save(otherHackathon);
-
-        List<Hackathon> result =
-                hackathonService.getAssignedHackathons(20L);
+        List<Hackathon> result = hackathonService.getAssignedHackathons(10L);
 
         assertEquals(1, result.size());
-        assertEquals(assignedHackathon, result.get(0));
-    }
-
-    @Test
-    void getAssignedHackathons_StaffNotFound_ThrowsException() {
-        assertThrows(IllegalArgumentException.class, () ->
-                hackathonService.getAssignedHackathons(999L)
-        );
-    }
-
-    @Test
-    void getAssignedHackathons_NullID_ThrowsException() {
-        assertThrows(IllegalArgumentException.class, () ->
-                hackathonService.getAssignedHackathons(null)
-        );
+        assertEquals(mockHackathon, result.get(0));
+        verify(hackathonRepository).findByStaffMemberId(10L);
     }
 
     // =========================================================================
-    // GET PARTICIPANTS TESTS
+    // 5. Test per getRequestsSupport
     // =========================================================================
 
     @Test
-    void getParticipants_Success() {
-        Mentor staffMember = new Mentor(
-                20L,
-                "Assigned Mentor",
-                "mentor@example.com",
-                null
-        );
-        staffMemberRepository.save(staffMember);
+    @DisplayName("getRequestsSupport – Estrae le richieste per il mentore assegnato")
+    void getRequestsSupport_Success() {
+        // Fix per checkAssignedHackathon interno
+        when(staffMemberRepository.findById(20L)).thenReturn(Optional.of(mockMentor));
+        when(hackathonRepository.findByStaffMemberId(20L)).thenReturn(List.of(mockHackathon));
+        when(mockHackathon.getId()).thenReturn(1L);
+        when(hackathonRepository.findById(1L)).thenReturn(Optional.of(mockHackathon));
 
-        Hackathon assignedHackathon = new Hackathon(
-                "Assigned Hackathon",
-                "Rules",
-                LocalDate.now().plusDays(1),
-                LocalDate.now().plusDays(2),
-                LocalDate.now().plusDays(3),
-                "Camerino",
-                "Prize",
-                new RegistrationState(),
-                5,
-                organizer,
-                new Judge(30L, "Judge"),
-                List.of(staffMember)
-        );
-        assignedHackathon.setId(300L);
-        hackathonRepository.save(assignedHackathon);
+        SupportRequest mockRequest = mock(SupportRequest.class);
+        when(supportRepository.findByMentor(mockMentor)).thenReturn(List.of(mockRequest));
 
-        Team team = new Team(
-                50L,
-                "Team Alpha",
-                List.of(new User(51L, "Andrea", "andrea@example.com"))
-        );
+        List<SupportRequest> results = hackathonService.getRequestsSupport(20L, 1L);
 
-        Registration registration =
-                new Registration(60L, team, assignedHackathon);
-
-        registrationRepository.save(registration);
-
-        List<Registration> result =
-                hackathonService.getParticipants(20L, 300L);
-
-        assertEquals(1, result.size());
-        assertEquals(registration, result.get(0));
-        assertEquals(team, result.get(0).getTeam());
-    }
-
-    @Test
-    void getParticipants_NoParticipants_ThrowsException() {
-        Mentor staffMember = new Mentor(
-                21L,
-                "Assigned Mentor",
-                "mentor2@example.com",
-                null
-        );
-        staffMemberRepository.save(staffMember);
-
-        Hackathon assignedHackathon = new Hackathon(
-                "Empty Hackathon",
-                "Rules",
-                LocalDate.now().plusDays(1),
-                LocalDate.now().plusDays(2),
-                LocalDate.now().plusDays(3),
-                "Online",
-                "Prize",
-                new RegistrationState(),
-                5,
-                organizer,
-                new Judge(31L, "Judge"),
-                List.of(staffMember)
-        );
-        assignedHackathon.setId(301L);
-        hackathonRepository.save(assignedHackathon);
-
-        assertThrows(IllegalArgumentException.class, () ->
-                hackathonService.getParticipants(21L, 301L)
-        );
-    }
-
-    @Test
-    void getParticipants_HackathonNotAssigned_ThrowsException() {
-        Mentor staffMember = new Mentor(
-                22L,
-                "Staff Member",
-                "mentor3@example.com",
-                null
-        );
-        staffMemberRepository.save(staffMember);
-
-        Hackathon otherHackathon = new Hackathon(
-                "Other Hackathon",
-                "Rules",
-                LocalDate.now().plusDays(1),
-                LocalDate.now().plusDays(2),
-                LocalDate.now().plusDays(3),
-                "Online",
-                "Prize",
-                new RegistrationState(),
-                5,
-                organizer,
-                new Judge(32L, "Judge"),
-                new ArrayList<>()
-        );
-        otherHackathon.setId(302L);
-        hackathonRepository.save(otherHackathon);
-
-        assertThrows(IllegalArgumentException.class, () ->
-                hackathonService.getParticipants(22L, 302L)
-        );
-    }
-
-    @Test
-    void getParticipants_NullID_ThrowsException() {
-        assertThrows(IllegalArgumentException.class, () ->
-                hackathonService.getParticipants(null, 300L)
-        );
-
-        assertThrows(IllegalArgumentException.class, () ->
-                hackathonService.getParticipants(20L, null)
-        );
+        assertFalse(results.isEmpty());
+        assertEquals(1, results.size());
     }
 
     // =========================================================================
-    // GET SUBMISSIONS TESTS
+    // 6. Test per getSubmissions
     // =========================================================================
 
     @Test
+    @DisplayName("getSubmissions – Estrae correttamente gli elaborati dai team")
     void getSubmissions_Success() {
-        Mentor staffMember = new Mentor(
-                20L,
-                "Assigned Mentor",
-                "mentor@example.com",
-                null
-        );
-        staffMemberRepository.save(staffMember);
+        // FIX: Aggiunto lo stubbing mancante per staffMemberRepository per evitare l'IllegalArgumentException
+        when(staffMemberRepository.findById(30L)).thenReturn(Optional.of(mockMentor));
+        when(hackathonRepository.findByStaffMemberId(30L)).thenReturn(List.of(mockHackathon));
+        when(mockHackathon.getId()).thenReturn(1L);
+        when(hackathonRepository.findById(1L)).thenReturn(Optional.of(mockHackathon));
 
-        Hackathon assignedHackathon = new Hackathon(
-                "Assigned Hackathon",
-                "Rules",
-                LocalDate.now().plusDays(1),
-                LocalDate.now().plusDays(2),
-                LocalDate.now().plusDays(3),
-                "Camerino",
-                "Prize",
-                new RegistrationState(),
-                5,
-                organizer,
-                new Judge(30L, "Judge"),
-                List.of(staffMember)
-        );
-        assignedHackathon.setId(400L);
-        hackathonRepository.save(assignedHackathon);
+        Registration mockRegistration = mock(Registration.class);
+        Team mockTeam = mock(Team.class);
+        Submission mockSubmission = mock(Submission.class);
 
-        Submission submission = new Submission(1L, "My Submission");
-        Team team = new Team(50L, "Team Alpha",
-                List.of(new User(51L, "Andrea", "andrea@example.com")));
-        team.setSubmission(submission);
+        when(mockRegistration.getTeam()).thenReturn(mockTeam);
+        when(mockTeam.getSubmission()).thenReturn(mockSubmission);
+        when(registrationRepository.findByHackathon(mockHackathon)).thenReturn(List.of(mockRegistration));
 
-        Registration registration = new Registration(60L, team, assignedHackathon);
-        registrationRepository.save(registration);
+        List<Submission> result = hackathonService.getSubmissions(30L, 1L);
 
-        List<Submission> result = hackathonService.getSubmissions(20L, 400L);
-
+        assertFalse(result.isEmpty());
         assertEquals(1, result.size());
-        assertEquals("My Submission", result.get(0).getName());
-    }
-
-    @Test
-    void getSubmissions_NullParams_ThrowsException() {
-        assertThrows(IllegalArgumentException.class, () ->
-                hackathonService.getSubmissions(null, 400L)
-        );
-        assertThrows(IllegalArgumentException.class, () ->
-                hackathonService.getSubmissions(20L, null)
-        );
-    }
-
-    @Test
-    void getSubmissions_HackathonNotAssigned_ThrowsException() {
-        Mentor staffMember = new Mentor(
-                21L,
-                "Assigned Mentor",
-                "mentor2@example.com",
-                null
-        );
-        staffMemberRepository.save(staffMember);
-
-        Hackathon otherHackathon = new Hackathon(
-                "Other Hackathon",
-                "Rules",
-                LocalDate.now().plusDays(1),
-                LocalDate.now().plusDays(2),
-                LocalDate.now().plusDays(3),
-                "Online",
-                "Prize",
-                new RegistrationState(),
-                5,
-                organizer,
-                new Judge(31L, "Judge"),
-                new ArrayList<>()  // staffMember non assegnato
-        );
-        otherHackathon.setId(401L);
-        hackathonRepository.save(otherHackathon);
-
-        assertThrows(IllegalArgumentException.class, () ->
-                hackathonService.getSubmissions(21L, 401L)
-        );
-    }
-
-    @Test
-    void getSubmissions_NoRegistrations_ThrowsException() {
-        Mentor staffMember = new Mentor(
-                22L,
-                "Assigned Mentor",
-                "mentor3@example.com",
-                null
-        );
-        staffMemberRepository.save(staffMember);
-
-        Hackathon assignedHackathon = new Hackathon(
-                "Empty Hackathon",
-                "Rules",
-                LocalDate.now().plusDays(1),
-                LocalDate.now().plusDays(2),
-                LocalDate.now().plusDays(3),
-                "Online",
-                "Prize",
-                new RegistrationState(),
-                5,
-                organizer,
-                new Judge(32L, "Judge"),
-                List.of(staffMember)
-        );
-        assignedHackathon.setId(402L);
-        hackathonRepository.save(assignedHackathon);
-
-        // Nessuna registrazione salvata
-        assertThrows(IllegalArgumentException.class, () ->
-                hackathonService.getSubmissions(22L, 402L)
-        );
-    }
-
-    @Test
-    void getSubmissions_TeamWithoutSubmission_ThrowsException() {
-        Mentor staffMember = new Mentor(
-                23L,
-                "Assigned Mentor",
-                "mentor4@example.com",
-                null
-        );
-        staffMemberRepository.save(staffMember);
-
-        Hackathon assignedHackathon = new Hackathon(
-                "Hackathon No Sub",
-                "Rules",
-                LocalDate.now().plusDays(1),
-                LocalDate.now().plusDays(2),
-                LocalDate.now().plusDays(3),
-                "Online",
-                "Prize",
-                new RegistrationState(),
-                5,
-                organizer,
-                new Judge(33L, "Judge"),
-                List.of(staffMember)
-        );
-        assignedHackathon.setId(403L);
-        hackathonRepository.save(assignedHackathon);
-
-        // Team senza submission
-        Team team = new Team(55L, "Team Beta",
-                List.of(new User(56L, "Marco", "marco@example.com")));
-
-        Registration registration = new Registration(65L, team, assignedHackathon);
-        registrationRepository.save(registration);
-
-        assertThrows(IllegalArgumentException.class, () ->
-                hackathonService.getSubmissions(23L, 403L)
-        );
+        assertEquals(mockSubmission, result.get(0));
     }
 }

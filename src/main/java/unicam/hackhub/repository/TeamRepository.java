@@ -1,22 +1,15 @@
 package unicam.hackhub.repository;
 
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 import unicam.hackhub.model.Team;
 import unicam.hackhub.model.User;
 
 import java.util.List;
+import java.util.Optional;
 
-public interface TeamRepository {
-
-    public Team findByID(Long teamID);
-
-    public Team findByUser(User user);
-
-    public Team findByName(String name);
-
-    public Team save(Team entity);
-
-    public void saveAll(List<Team> entities);
-
-    void delete(Team team);
-
+@Repository
+public interface TeamRepository extends JpaRepository<Team, Long> {
+    Optional<Team> findByTeamName(String teamName);
+    Optional<Team> findByUser(User user);
 }

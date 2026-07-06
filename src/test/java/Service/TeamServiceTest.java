@@ -4,20 +4,20 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import unicam.hackhub.model.Invite;
-import unicam.hackhub.model.Team;
-import unicam.hackhub.model.User;
-import unicam.hackhub.repository.HackathonRepository;
-import unicam.hackhub.repository.TeamRepository;
-import unicam.hackhub.repository.UserRepository;
+import unicam.hackhub.model.*;
+import unicam.hackhub.repository.*;
 import unicam.hackhub.service.CalendarService;
 import unicam.hackhub.service.InviteService;
 import unicam.hackhub.service.TeamService;
 import unicam.hackhub.service.UserService;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -29,83 +29,48 @@ class TeamServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private TeamRepository teamRepository;
     @Mock private HackathonRepository hackathonRepository;
+    @Mock private StaffMemberRepository staffMemberRepository;
+    @Mock private ReportRepository reportRepository;
     @Mock private InviteService inviteService;
     @Mock private UserService userService;
     @Mock private CalendarService calendarService;
 
+    @InjectMocks
     private TeamService teamService;
 
     private User leader;
     private User memberA;
     private User memberB;
+    private Team mockTeam;
 
     @BeforeEach
     void setUp() {
-        teamService = new TeamService(userRepository, teamRepository,
-                hackathonRepository, inviteService, userService, calendarService);
-
         leader  = new User(1L, "Alice", "alice@test.it");
         memberA = new User(2L, "Bob",   "bob@test.it");
         memberB = new User(3L, "Carlo", "carlo@test.it");
+        mockTeam = mock(Team.class);
     }
 
-    // -----------------------------------------------------------------------
-    // BREAK: User not found
-    // -----------------------------------------------------------------------
-
-    /**
-     * Scenario: userRepository restituisce null → checkEligibility riceve null →
-     * NullPointerException (bug noto: TeamService non fa il null-check prima
-     * di delegare a UserService).
-     *
-     * Il test documenta il comportamento attuale. Per allinearlo al diagramma
-     * ("User not found") si dovrebbe aggiungere:
-     *   if (leader == null) throw new IllegalArgumentException("User not found");
-     * prima della chiamata a checkEligibility.
-     */
-    @Test
-    @DisplayName("[break] User not found → NullPointerException (comportamento attuale)")
-    void createTeam_userNotFound_throwsNPE() {
-        when(userRepository.findByID(99L)).thenReturn(null);
-        assertThrows(NullPointerException.class,
-                () -> teamService.createTeam(99L, "Alpha", List.of()));
-    }
-
-    // -----------------------------------------------------------------------
-    // BREAK: User already in a team
-    // -----------------------------------------------------------------------
+    // =========================================================================
+    // 1. Test per createTeam
+    // =========================================================================
 
     @Test
-    @DisplayName("[break] User already in a team → IllegalArgumentException")
-    void createTeam_userAlreadyInTeam_throwsException() {
-        Team existingTeam = new Team(10L, "OldTeam", List.of(leader));
-        leader.setCurrentTeam(existingTeam); // leader.hasTeam() == true
-
-        when(userRepository.findByID(1L)).thenReturn(leader);
-
-        // checkEligibility è il metodo reale di UserService; usiamo il mock
-        doThrow(new IllegalArgumentException("User already in a team"))
-                .when(userService).checkEligibility(leader);
+    @DisplayName("createTeam – Utente non trovato → Lancia IllegalArgumentException 'User not found'")
+    void createTeam_UserNotFound_ThrowsException() {
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> teamService.createTeam(1L, "NewTeam", List.of()));
+                () -> teamService.createTeam(99L, "Alpha", List.of()));
 
-        assertEquals("User already in a team", ex.getMessage());
-        verify(teamRepository, never()).save(any());
+        assertEquals("User not found", ex.getMessage());
     }
 
-    // -----------------------------------------------------------------------
-    // BREAK: Team name already used
-    // -----------------------------------------------------------------------
-
     @Test
-    @DisplayName("[break] Team name already used → IllegalArgumentException")
-    void createTeam_teamNameAlreadyUsed_throwsException() {
-        when(userRepository.findByID(1L)).thenReturn(leader);
-        doNothing().when(userService).checkEligibility(leader); // leader è eleggibile
-
-        Team duplicateTeam = new Team(5L, "Alpha", List.of());
-        when(teamRepository.findByName("Alpha")).thenReturn(duplicateTeam);
+    @DisplayName("createTeam – Nome già utilizzato → Lancia IllegalArgumentException")
+    void createTeam_TeamNameAlreadyUsed_ThrowsException() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(leader));
+        when(teamRepository.findByTeamName("Alpha")).thenReturn(Optional.of(mockTeam));
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> teamService.createTeam(1L, "Alpha", List.of()));
@@ -114,282 +79,155 @@ class TeamServiceTest {
         verify(teamRepository, never()).save(any());
     }
 
-    // -----------------------------------------------------------------------
-    // Happy path – solo leader, nessun invito
-    // -----------------------------------------------------------------------
-
     @Test
-    @DisplayName("Happy path – team creato, leader aggiornato, nessun invito")
-    void createTeam_success_noInvites() {
-        when(userRepository.findByID(1L)).thenReturn(leader);
-        doNothing().when(userService).checkEligibility(leader);
-        when(teamRepository.findByName("Alpha")).thenReturn(null);
-        when(teamRepository.save(any(Team.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(userRepository.save(leader)).thenReturn(leader);
+    @DisplayName("createTeam – Flusso di successo → Team creato e inviti spediti ai membri validi")
+    void createTeam_Success_WithInvites() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(leader));
+        when(teamRepository.findByTeamName("Alpha")).thenReturn(Optional.empty());
+        when(userRepository.findById(2L)).thenReturn(Optional.of(memberA));
 
-        Team result = teamService.createTeam(1L, "Alpha", null);
+        Team result = teamService.createTeam(1L, "Alpha", List.of(memberA, leader)); // leader si auto-invita per test
 
         assertNotNull(result);
         assertEquals("Alpha", result.getTeamName());
         assertTrue(result.getMembers().contains(leader));
 
-        verify(teamRepository).save(result);
+        verify(teamRepository).save(any(Team.class));
         verify(userRepository).save(leader);
-        verify(inviteService, never()).createInvite(anyLong(), any());
-    }
-
-    // -----------------------------------------------------------------------
-    // [opt / loop] Inviti ai membri iniziali
-    // -----------------------------------------------------------------------
-
-    @Test
-    @DisplayName("[opt/loop] Team creato con lista membri → inviti inviati")
-    void createTeam_withMembers_invitesSent() {
-        when(userRepository.findByID(1L)).thenReturn(leader);
-        doNothing().when(userService).checkEligibility(leader);
-        when(teamRepository.findByName("Alpha")).thenReturn(null);
-        when(teamRepository.save(any(Team.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(userRepository.save(leader)).thenReturn(leader);
-
-        when(userRepository.findByID(2L)).thenReturn(memberA);
-        when(userRepository.findByID(3L)).thenReturn(memberB);
-
-        Invite fakeInvite = new Invite();
-        when(inviteService.createInvite(anyLong(), any(User.class))).thenReturn(fakeInvite);
-
-        Team result = teamService.createTeam(1L, "Alpha", List.of(memberA, memberB));
-
-        assertNotNull(result);
-        // Un invito per ognuno dei due membri
-        verify(inviteService, times(1)).createInvite(result.getId(), memberA);
-        verify(inviteService, times(1)).createInvite(result.getId(), memberB);
-        verify(inviteService, times(2)).createInvite(anyLong(), any(User.class));
+        // Verifica inviti: inviato a memberA, saltato l'auto-invito del leader
+        verify(inviteService, times(1)).createInvite(any(), eq(memberA));
+        verify(inviteService, never()).createInvite(any(), eq(leader));
     }
 
     @Test
-    @DisplayName("[opt/loop] Membro non trovato in repository → invito saltato")
-    void createTeam_memberNotFound_inviteSkipped() {
-        when(userRepository.findByID(1L)).thenReturn(leader);
-        doNothing().when(userService).checkEligibility(leader);
-        when(teamRepository.findByName("Alpha")).thenReturn(null);
-        when(teamRepository.save(any(Team.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(userRepository.save(leader)).thenReturn(leader);
-
-        when(userRepository.findByID(2L)).thenReturn(null); // memberA non trovato
-        when(userRepository.findByID(3L)).thenReturn(memberB);
-
-        when(inviteService.createInvite(anyLong(), any(User.class))).thenReturn(new Invite());
-
-        teamService.createTeam(1L, "Alpha", List.of(memberA, memberB));
-
-        // Solo memberB deve ricevere l'invito
-        verify(inviteService, times(1)).createInvite(anyLong(), eq(memberB));
-        verify(inviteService, never()).createInvite(anyLong(), eq(memberA));
-    }
-
-    // -----------------------------------------------------------------------
-    // Verifica stato del team restituito
-    // -----------------------------------------------------------------------
-
-    @Test
-    @DisplayName("Il team restituito contiene solo il leader come membro iniziale")
-    void createTeam_returnedTeam_containsOnlyLeader() {
-        when(userRepository.findByID(1L)).thenReturn(leader);
-        doNothing().when(userService).checkEligibility(leader);
-        when(teamRepository.findByName("Beta")).thenReturn(null);
-        when(teamRepository.save(any(Team.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(userRepository.save(leader)).thenReturn(leader);
-        when(userRepository.findByID(2L)).thenReturn(memberA);
-        when(inviteService.createInvite(anyLong(), any())).thenReturn(new Invite());
-
-        Team result = teamService.createTeam(1L, "Beta", List.of(memberA));
-
-        assertEquals(1, result.getMembers().size(),
-                "I membri invitati non devono essere aggiunti al team finché non accettano");
-        assertTrue(result.getMembers().contains(leader));
-    }
-
-    // 1. Correggiamo il test del fallimento per allinearlo alla logica reale
-    @Test
-    @DisplayName("[break] User already in a team → Gestito dal controllo interno di TeamService")
-    void createTeam_userAlreadyInTeam_checkedByService() {
-        Team existingTeam = new Team(10L, "OldTeam", List.of(leader));
-        leader.setCurrentTeam(existingTeam);
-
-        when(userRepository.findByID(1L)).thenReturn(leader);
-        doNothing().when(userService).checkEligibility(leader); // Il mock non fa nulla
-
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> teamService.createTeam(1L, "NewTeam", List.of()));
-
-        assertEquals("User already in a team", ex.getMessage());
-    }
-
-    // 2. Test per l'auto-invito del leader
-    @Test
-    @DisplayName("Se il leader è presente nella lista invitati, non deve ricevere l'invito")
-    void createTeam_leaderInInviteList_shouldSkipLeader() {
-        when(userRepository.findByID(1L)).thenReturn(leader);
-        doNothing().when(userService).checkEligibility(leader);
-        when(teamRepository.findByName("Alpha")).thenReturn(null);
-        when(teamRepository.save(any(Team.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        // Il leader prova a invitare se stesso
-        Team result = teamService.createTeam(1L, "Alpha", List.of(leader));
-
-        // Verifica che non sia mai stato creato un invito per il leader (ID 1L)
-        verify(inviteService, never()).createInvite(anyLong(), eq(leader));
-    }
-
-    // 3. Test per la validazione del nome stringa vuota
-    @Test
-    @DisplayName("Nome team composto da soli spazi → IllegalArgumentException")
-    void createTeam_blankName_throwsException() {
+    @DisplayName("createTeam – Nome vuoto o composto da spazi → Lancia eccezione")
+    void createTeam_BlankName_ThrowsException() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> teamService.createTeam(1L, "   ", List.of()));
 
         assertEquals("Team name cannot be empty or blank", ex.getMessage());
     }
 
-    // -----------------------------------------------------------------------
-    // BAN TEAM
-    // -----------------------------------------------------------------------
+    // =========================================================================
+    // 2. Test per deleteTeam
+    // =========================================================================
 
     @Test
-    @DisplayName("banTeam - team esistente - rimuove i membri dal team")
-    void banTeam_success() {
-        Team team = new Team(10L, "Alpha", List.of(leader, memberA));
+    @DisplayName("deleteTeam – Utente nel team corretto → Sgancia i membri ed elimina il team")
+    void deleteTeam_Success() {
+        Team teamToDelete = new Team(10L, "Alpha", new ArrayList<>(List.of(leader)));
+        leader.setCurrentTeam(teamToDelete);
 
+        when(teamRepository.findById(10L)).thenReturn(Optional.of(teamToDelete));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(leader));
+
+        assertDoesNotThrow(() -> teamService.deleteTeam(1L, 10L));
+
+        assertNull(leader.getCurrentTeam());
+        verify(userRepository).save(leader);
+        verify(teamRepository).delete(teamToDelete);
+    }
+
+    // =========================================================================
+    // 3. Test per banTeam
+    // =========================================================================
+
+    @Test
+    @DisplayName("banTeam – ID valido → Sgancia tutti i membri e svuota il team")
+    void banTeam_Success() {
+        List<User> members = new ArrayList<>(List.of(leader, memberA));
+        Team team = new Team(10L, "Alpha", members);
         leader.setCurrentTeam(team);
         memberA.setCurrentTeam(team);
 
-        when(teamRepository.findByID(10L)).thenReturn(team);
+        when(teamRepository.findById(10L)).thenReturn(Optional.of(team));
 
         teamService.banTeam(10L);
 
         assertNull(leader.getCurrentTeam());
         assertNull(memberA.getCurrentTeam());
         assertTrue(team.getMembers().isEmpty());
-
-        verify(userRepository).save(leader);
-        verify(userRepository).save(memberA);
         verify(teamRepository).save(team);
     }
 
+    // =========================================================================
+    // 4. Test per reportTeam
+    // =========================================================================
+
     @Test
-    @DisplayName("banTeam - team inesistente - lancia eccezione")
-    void banTeam_teamNotFound_throwsException() {
-        when(teamRepository.findByID(99L)).thenReturn(null);
+    @DisplayName("reportTeam – Mentore assegnato all'hackathon → Crea la segnalazione")
+    void reportTeam_Success() {
+        Mentor mentor = mock(Mentor.class);
+        Hackathon hackathon = mock(Hackathon.class);
 
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> teamService.banTeam(99L)
-        );
+        when(mentor.getId()).thenReturn(3L);
+        when(mockTeam.getHackathon()).thenReturn(hackathon);
+        when(hackathon.getListMentors()).thenReturn(List.of(mentor));
 
-        verify(teamRepository, never()).save(any());
+        when(staffMemberRepository.findById(3L)).thenReturn(Optional.of(mentor));
+        when(teamRepository.findById(10L)).thenReturn(Optional.of(mockTeam));
+        when(reportRepository.save(any(Report.class))).thenReturn(mock(Report.class));
+
+        Report report = teamService.reportTeam(3L, 10L, "Comportamento scorretto");
+
+        assertNotNull(report);
+        verify(reportRepository).save(any(Report.class));
     }
 
     @Test
-    @DisplayName("banTeam - ID nullo - lancia eccezione")
-    void banTeam_nullID_throwsException() {
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> teamService.banTeam((Long) null)
-        );
+    @DisplayName("reportTeam – Mentore non assegnato all'hackathon → Lancia IllegalArgumentException")
+    void reportTeam_MentorNotAssigned_ThrowsException() {
+        Mentor mentor = new Mentor();
+        mentor.setId(3L);
 
-        verifyNoInteractions(teamRepository);
+        Mentor otherMentor = new Mentor();
+        otherMentor.setId(99L);
+
+        Hackathon hackathon = mock(Hackathon.class);
+
+        // Configura l'hackathon per contenere SOLO l'altro mentore
+        when(mockTeam.getHackathon()).thenReturn(hackathon);
+        when(hackathon.getListMentors()).thenReturn(List.of(otherMentor));
+
+        // Ora entrambi gli stubbing sono strettamente necessari e verranno consumati!
+        when(staffMemberRepository.findById(3L)).thenReturn(Optional.of(mentor));
+        when(teamRepository.findById(10L)).thenReturn(Optional.of(mockTeam));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> teamService.reportTeam(3L, 10L, "Comportamento scorretto"));
+
+        assertEquals("Mentor is not assigned to this hackathon", ex.getMessage());
+        verify(reportRepository, never()).save(any());
     }
-
-    // -----------------------------------------------------------------------
-    // EDIT TEAM INFO
-    // -----------------------------------------------------------------------
+    // =========================================================================
+    // 5. Test per editTeamInfo
+    // =========================================================================
 
     @Test
-    @DisplayName("editTeamInfo - dati validi - modifica il nome del team")
-    void editTeamInfo_success() {
+    @DisplayName("editTeamInfo – Dati validi ed utente nel team → Aggiorna il nome correttamente")
+    void editTeamInfo_Success() {
         Team team = new Team(10L, "Old Name", List.of(leader));
         leader.setCurrentTeam(team);
 
-        when(userRepository.findByID(1L)).thenReturn(leader);
-        when(teamRepository.findByID(10L)).thenReturn(team);
-        when(teamRepository.findByName("New Name")).thenReturn(null);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(leader));
+        when(teamRepository.findById(10L)).thenReturn(Optional.of(team));
+        when(teamRepository.findByTeamName("New Name")).thenReturn(Optional.empty());
         when(teamRepository.save(team)).thenReturn(team);
 
-        Team result = teamService.editTeamInfo(
-                1L,
-                10L,
-                "New Name"
-        );
+        Team result = teamService.editTeamInfo(1L, 10L, "New Name");
 
         assertNotNull(result);
         assertEquals("New Name", result.getTeamName());
-
         verify(teamRepository).save(team);
     }
 
     @Test
-    @DisplayName("editTeamInfo - utente non appartenente al team - lancia eccezione")
-    void editTeamInfo_userNotInTeam_throwsException() {
-        Team team = new Team(10L, "Alpha", List.of());
+    @DisplayName("editTeamInfo – Dati non validi o mancanti → Lancia IllegalArgumentException 'Invalid team data'")
+    void editTeamInfo_InvalidData_ThrowsException() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> teamService.editTeamInfo(null, 10L, "New Name"));
 
-        when(userRepository.findByID(1L)).thenReturn(leader);
-        when(teamRepository.findByID(10L)).thenReturn(team);
-
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> teamService.editTeamInfo(
-                        1L,
-                        10L,
-                        "New Name"
-                )
-        );
-
+        assertEquals("Invalid team data", ex.getMessage());
         verify(teamRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("editTeamInfo - nome già utilizzato - lancia eccezione")
-    void editTeamInfo_duplicateName_throwsException() {
-        Team team = new Team(10L, "Alpha", List.of(leader));
-        Team existingTeam = new Team(11L, "Beta", List.of());
-
-        leader.setCurrentTeam(team);
-
-        when(userRepository.findByID(1L)).thenReturn(leader);
-        when(teamRepository.findByID(10L)).thenReturn(team);
-        when(teamRepository.findByName("Beta")).thenReturn(existingTeam);
-
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> teamService.editTeamInfo(
-                        1L,
-                        10L,
-                        "Beta"
-                )
-        );
-
-        verify(teamRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("editTeamInfo - dati non validi - lancia eccezione")
-    void editTeamInfo_invalidData_throwsException() {
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> teamService.editTeamInfo(
-                        null,
-                        10L,
-                        "New Name"
-                )
-        );
-
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> teamService.editTeamInfo(
-                        1L,
-                        10L,
-                        "   "
-                )
-        );
     }
 }

@@ -1,28 +1,25 @@
 package Handler;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
+import org.mockito.Mockito;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import unicam.hackhub.handler.RegistrationHandler;
 import unicam.hackhub.model.Registration;
 import unicam.hackhub.model.Team;
 import unicam.hackhub.model.User;
 import unicam.hackhub.service.RegistrationService;
+import unicam.hackhub.service.UserService;
 
-@ExtendWith(MockitoExtension.class)
-public class RegistrationHandlerTest {
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
-    @Mock
+class RegistrationHandlerTest {
+
     private RegistrationService registrationService;
-
-    @InjectMocks
+    private UserService userService;
     private RegistrationHandler registrationHandler;
 
     private Registration mockRegistration;
@@ -31,91 +28,121 @@ public class RegistrationHandlerTest {
 
     @BeforeEach
     void setUp() {
-        // Inizializzazione degli oggetti mock per i test
-        mockRegistration = mock(Registration.class);
-        mockTeam = mock(Team.class);
-        mockUser = mock(User.class);
+        // 1. Inizializzazione manuale e accoppiamento dei mock dei Service
+        registrationService = Mockito.mock(RegistrationService.class);
+        userService = Mockito.mock(UserService.class);
+
+        // 2. Passiamo entrambi i service al costruttore dell'handler
+        registrationHandler = new RegistrationHandler(registrationService, userService);
+
+        // 3. Mock dei modelli di dati
+        mockRegistration = Mockito.mock(Registration.class);
+        mockTeam = Mockito.mock(Team.class);
+        mockUser = Mockito.mock(User.class);
     }
 
-    // --- Test per registerTeam ---
+    // =======================================================================
+    // Test per registerTeam (POST)
+    // =======================================================================
 
     @Test
+    @DisplayName("registerTeam – Successo restituisce 201 Created")
     void registerTeam_Success() {
         Long hackathonId = 1L;
         Long userId = 2L;
 
         when(registrationService.registerTeam(hackathonId, userId)).thenReturn(mockRegistration);
 
-        Registration result = registrationHandler.registerTeam(hackathonId, userId);
+        // Eseguiamo la chiamata diretta che restituisce ResponseEntity
+        ResponseEntity<Registration> response = registrationHandler.registerTeam(hackathonId, userId);
 
-        assertNotNull(result);
-        assertEquals(mockRegistration, result);
+        assertNotNull(response);
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        assertEquals(mockRegistration, response.getBody());
         verify(registrationService, times(1)).registerTeam(hackathonId, userId);
     }
 
     @Test
-    void registerTeam_Exception_ReturnsNull() {
+    @DisplayName("registerTeam – Eccezione nel Service restituisce 400 Bad Request")
+    void registerTeam_Exception_ReturnsBadRequest() {
         Long hackathonId = 1L;
         Long userId = 2L;
 
         when(registrationService.registerTeam(hackathonId, userId))
                 .thenThrow(new IllegalArgumentException("Hackathon non trovato"));
 
-        Registration result = registrationHandler.registerTeam(hackathonId, userId);
+        ResponseEntity<Registration> response = registrationHandler.registerTeam(hackathonId, userId);
 
-        assertNull(result);
-        verify(registrationService, times(1)).registerTeam(hackathonId, userId);
+        assertNotNull(response);
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNull(response.getBody());
     }
 
-    // --- Test per getRegistration ---
+    // =======================================================================
+    // Test per getRegistration (GET)
+    // =======================================================================
 
     @Test
+    @DisplayName("getRegistration – Trovata restituisce 200 OK")
     void getRegistration_Success() {
         Long teamId = 10L;
 
         when(registrationService.getRegistration(teamId)).thenReturn(mockRegistration);
 
-        Registration result = registrationHandler.getRegistration(teamId);
+        ResponseEntity<Registration> response = registrationHandler.getRegistration(teamId);
 
-        assertNotNull(result);
-        assertEquals(mockRegistration, result);
-        verify(registrationService, times(1)).getRegistration(teamId);
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(mockRegistration, response.getBody());
     }
 
     @Test
-    void getRegistration_Exception_ReturnsNull() {
+    @DisplayName("getRegistration – Null restituisce 404 Not Found")
+    void getRegistration_NotFound_Returns404() {
         Long teamId = 10L;
 
-        when(registrationService.getRegistration(teamId))
-                .thenThrow(new IllegalArgumentException("Registrazione inesistente"));
+        // Il controller verifica esplicitamente se l'oggetto restituito è null
+        when(registrationService.getRegistration(teamId)).thenReturn(null);
 
-        Registration result = registrationHandler.getRegistration(teamId);
+        ResponseEntity<Registration> response = registrationHandler.getRegistration(teamId);
 
-        assertNull(result);
-        verify(registrationService, times(1)).getRegistration(teamId);
+        assertNotNull(response);
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertNull(response.getBody());
     }
 
-    // --- Test per getTeamByUser ---
+    // =======================================================================
+    // Test per getTeamByUser (GET)
+    // =======================================================================
 
     @Test
+    @DisplayName("getTeamByUser – Team trovato per l'utente restituisce 200 OK")
     void getTeamByUser_Success() {
+        Long userId = 2L;
+
+        // L'handler prima cerca l'utente via UserService, poi cerca il team associato
+        when(userService.getUser(userId)).thenReturn(mockUser);
         when(registrationService.getTeamByUser(mockUser)).thenReturn(mockTeam);
 
-        Team result = registrationHandler.getTeamByUser(mockUser);
+        ResponseEntity<Team> response = registrationHandler.getTeamByUser(userId);
 
-        assertNotNull(result);
-        assertEquals(mockTeam, result);
-        verify(registrationService, times(1)).getTeamByUser(mockUser);
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(mockTeam, response.getBody());
     }
 
     @Test
-    void getTeamByUser_Exception_ReturnsNull() {
-        when(registrationService.getTeamByUser(mockUser))
-                .thenThrow(new IllegalArgumentException("Utente non associato a nessun team"));
+    @DisplayName("getTeamByUser – Team assente per l'utente restituisce 404 Not Found")
+    void getTeamByUser_NotFound_Returns404() {
+        Long userId = 2L;
 
-        Team result = registrationHandler.getTeamByUser(mockUser);
+        when(userService.getUser(userId)).thenReturn(mockUser);
+        when(registrationService.getTeamByUser(mockUser)).thenReturn(null);
 
-        assertNull(result);
-        verify(registrationService, times(1)).getTeamByUser(mockUser);
+        ResponseEntity<Team> response = registrationHandler.getTeamByUser(userId);
+
+        assertNotNull(response);
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertNull(response.getBody());
     }
 }

@@ -1,12 +1,14 @@
 package unicam.hackhub.repository;
 
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+import unicam.hackhub.model.Mentor;
 import unicam.hackhub.model.SupportRequest;
+import unicam.hackhub.model.Team;
+
 import java.util.List;
 
-public interface SupportRepository {
-    SupportRequest save(SupportRequest requestSupport);
-    SupportRequest findByID(Long id);
-    List<SupportRequest> findAllByMentor(Long mentorID);
-    List<SupportRequest> findAllByTeam(Long teamID);
-    void delete(SupportRequest request);
+@Repository
+public interface SupportRepository extends JpaRepository<SupportRequest, Long> {
+    List<SupportRequest> findByMentor(Mentor mentor);
 }

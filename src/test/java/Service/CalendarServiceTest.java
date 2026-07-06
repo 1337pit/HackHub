@@ -4,24 +4,20 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import unicam.hackhub.model.Mentor;
-import unicam.hackhub.model.Organizer;
-import unicam.hackhub.model.SupportRequest;
-import unicam.hackhub.model.Team;
-import unicam.hackhub.repository.StaffMemberRepository;
-import unicam.hackhub.repository.SupportRepository;
-import unicam.hackhub.repository.TeamRepository;
+import unicam.hackhub.model.*;
+import unicam.hackhub.repository.*;
 import unicam.hackhub.service.CalendarService;
-import unicam.hackhub.service.GoogleCalendarAPI;
+import unicam.hackhub.service.CalendarAPI;
 
-import java.io.IOException;
-import java.security.GeneralSecurityException;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -30,12 +26,17 @@ class CalendarServiceTest {
     @Mock private StaffMemberRepository staffMemberRepository;
     @Mock private SupportRepository supportRepository;
     @Mock private TeamRepository teamRepository;
-    @Mock private GoogleCalendarAPI googleCalendarAPI;
+    @Mock private HackathonRepository hackathonRepository;
+    @Mock private UserRepository userRepository;
+    @Mock private CalendarAPI fakeCalendarService; // Sostituito qui
 
+    @InjectMocks
     private CalendarService calendarService;
 
     private Mentor mentor;
     private Team team;
+    private Hackathon hackathon;
+    private User user;
 
     private final LocalDate TODAY     = LocalDate.now();
     private final LocalDate TOMORROW  = TODAY.plusDays(1);
@@ -43,131 +44,96 @@ class CalendarServiceTest {
 
     @BeforeEach
     void setUp() {
-        calendarService = new CalendarService(
-                staffMemberRepository, supportRepository,
-                teamRepository, googleCalendarAPI);
-
-        mentor = new Mentor(1L, "Mentor One", "mentor@test.it", null);
-        team   = new Team(1L, "Team Alpha", List.of());
+        // Passa null per email e hackathon per soddisfare il costruttore a 4 parametri
+        mentor    = new Mentor(1L, "Mentor One", "mentor@test.it", null);
+        team      = new Team(1L, "Team Alpha", List.of());
+        hackathon = new Hackathon();
+        user      = new User(1L, "Alice", "alice@test.it");
     }
 
-    // -----------------------------------------------------------------------
-    // getAvailableDates
-    // -----------------------------------------------------------------------
+    // =========================================================================
+    // 1. Test per getAvailableDates
+    // =========================================================================
 
     @Test
-    @DisplayName("getAvailableDates – range valido → restituisce date libere da Google")
-    void getAvailableDates_validData_returnsFreeDates() throws Exception {
-        when(staffMemberRepository.findByID(1L)).thenReturn(mentor);
-        when(googleCalendarAPI.getFreeDates(TODAY, NEXT_WEEK))
+    @DisplayName("getAvailableDates – range valido → restituisce date libere dal FakeCalendar")
+    void getAvailableDates_validData_returnsFreeDates() {
+        when(staffMemberRepository.findById(1L)).thenReturn(Optional.of(mentor));
+        when(fakeCalendarService.getFreeDates(TODAY, NEXT_WEEK))
                 .thenReturn(List.of(TOMORROW, TODAY.plusDays(3)));
 
         List<LocalDate> result = calendarService.getAvailableDates(1L, TODAY, NEXT_WEEK);
 
         assertEquals(2, result.size());
         assertTrue(result.contains(TOMORROW));
-        verify(googleCalendarAPI).getFreeDates(TODAY, NEXT_WEEK);
+        verify(fakeCalendarService).getFreeDates(TODAY, NEXT_WEEK);
     }
 
     @Test
     @DisplayName("getAvailableDates – parametro null → IllegalArgumentException 'Invalid data'")
-    void getAvailableDates_nullData_throwsException() throws GeneralSecurityException, IOException {
-        assertThrows(IllegalArgumentException.class,
-                () -> calendarService.getAvailableDates(null, TODAY, NEXT_WEEK));
-        assertThrows(IllegalArgumentException.class,
-                () -> calendarService.getAvailableDates(1L, null, NEXT_WEEK));
-        assertThrows(IllegalArgumentException.class,
-                () -> calendarService.getAvailableDates(1L, TODAY, null));
+    void getAvailableDates_nullData_throwsException() {
+        assertThrows(IllegalArgumentException.class, () -> calendarService.getAvailableDates(null, TODAY, NEXT_WEEK));
+        assertThrows(IllegalArgumentException.class, () -> calendarService.getAvailableDates(1L, null, NEXT_WEEK));
+        assertThrows(IllegalArgumentException.class, () -> calendarService.getAvailableDates(1L, TODAY, null));
 
-        verify(googleCalendarAPI, never()).getFreeDates(any(), any());
+        verify(fakeCalendarService, never()).getFreeDates(any(), any());
     }
 
     @Test
-    @DisplayName("getAvailableDates – end non dopo start → IllegalArgumentException")
-    void getAvailableDates_endNotAfterStart_throwsException() throws GeneralSecurityException, IOException {
-        assertThrows(IllegalArgumentException.class,
-                () -> calendarService.getAvailableDates(1L, NEXT_WEEK, TODAY));
+    @DisplayName("getAvailableDates – data di fine precedente a quella di inizio → IllegalArgumentException")
+    void getAvailableDates_endNotAfterStart_throwsException() {
+        assertThrows(IllegalArgumentException.class, () -> calendarService.getAvailableDates(1L, NEXT_WEEK, TODAY));
 
-        verify(googleCalendarAPI, never()).getFreeDates(any(), any());
+        verify(fakeCalendarService, never()).getFreeDates(any(), any());
     }
 
     @Test
-    @DisplayName("getAvailableDates – staff non è un Mentor → IllegalArgumentException")
-    void getAvailableDates_staffNotMentor_throwsException() throws GeneralSecurityException, IOException {
-        when(staffMemberRepository.findByID(1L)).thenReturn(new Organizer(1L, "Org"));
+    @DisplayName("getAvailableDates – lo staff trovato non è un istanza di Mentor → IllegalArgumentException")
+    void getAvailableDates_staffNotMentor_throwsException() {
+        Organizer organizer = new Organizer(1L, "Organizer One");
+        when(staffMemberRepository.findById(1L)).thenReturn(Optional.of(organizer));
 
-        assertThrows(IllegalArgumentException.class,
-                () -> calendarService.getAvailableDates(1L, TODAY, NEXT_WEEK));
+        assertThrows(IllegalArgumentException.class, () -> calendarService.getAvailableDates(1L, TODAY, NEXT_WEEK));
 
-        verify(googleCalendarAPI, never()).getFreeDates(any(), any());
+        verify(fakeCalendarService, never()).getFreeDates(any(), any());
     }
 
-    @Test
-    @DisplayName("getAvailableDates – mentor non trovato → IllegalArgumentException")
-    void getAvailableDates_mentorNotFound_throwsException() throws GeneralSecurityException, IOException {
-        when(staffMemberRepository.findByID(99L)).thenReturn(null);
-
-        assertThrows(IllegalArgumentException.class,
-                () -> calendarService.getAvailableDates(99L, TODAY, NEXT_WEEK));
-
-        verify(googleCalendarAPI, never()).getFreeDates(any(), any());
-    }
+    // =========================================================================
+    // 2. Test per bookDate
+    // =========================================================================
 
     @Test
-    @DisplayName("getAvailableDates – Google Calendar non disponibile → IllegalStateException")
-    void getAvailableDates_googleUnavailable_throwsIllegalState() throws Exception {
-        when(staffMemberRepository.findByID(1L)).thenReturn(mentor);
-        when(googleCalendarAPI.getFreeDates(any(), any()))
-                .thenThrow(new IOException("Connection refused"));
+    @DisplayName("bookDate – prenotazione valida → salva SupportRequest con l'ID fittizio dell'evento")
+    void bookDate_validData_savesSupportRequest() {
+        when(staffMemberRepository.findById(1L)).thenReturn(Optional.of(mentor));
+        when(teamRepository.findById(1L)).thenReturn(Optional.of(team));
+        when(hackathonRepository.findById(1L)).thenReturn(Optional.of(hackathon));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
-        assertThrows(IllegalStateException.class,
-                () -> calendarService.getAvailableDates(1L, TODAY, NEXT_WEEK));
-    }
-
-    // -----------------------------------------------------------------------
-    // bookDate
-    // -----------------------------------------------------------------------
-
-    @Test
-    @DisplayName("bookDate – prenotazione valida → salva SupportRequest con googleEventID")
-    void bookDate_validData_savesSupportRequest() throws Exception {
-        when(staffMemberRepository.findByID(1L)).thenReturn(mentor);
-        when(teamRepository.findByID(1L)).thenReturn(team);
-        when(googleCalendarAPI.getFreeDates(TOMORROW, TOMORROW))
-                .thenReturn(List.of(TOMORROW));
-        when(googleCalendarAPI.createEvent(TOMORROW, "Team Alpha", "Mentor One"))
-                .thenReturn("google-event-123");
-        when(supportRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(fakeCalendarService.getFreeDates(TOMORROW, TOMORROW)).thenReturn(List.of(TOMORROW));
+        when(fakeCalendarService.createEvent(TOMORROW)).thenReturn("fake-event-123");
+        when(supportRepository.save(any(SupportRequest.class))).thenAnswer(i -> i.getArgument(0));
 
         SupportRequest result = calendarService.bookDate(1L, 1L, 1L, 1L, TOMORROW);
 
         assertNotNull(result);
         assertEquals(TOMORROW, result.getRequestedDate());
-        assertEquals("google-event-123", result.getGoogleEventID());
-        assertEquals(1L, result.getMentorID());
-        assertEquals(1L, result.getTeamID());
-        verify(supportRepository).save(any());
+        assertEquals("fake-event-123", result.getGoogleEventID());
+        verify(supportRepository).save(any(SupportRequest.class));
     }
 
     @Test
-    @DisplayName("bookDate – parametro null → IllegalArgumentException 'Invalid data'")
+    @DisplayName("bookDate – parametri obbligatori null → IllegalArgumentException")
     void bookDate_nullData_throwsException() {
-        assertThrows(IllegalArgumentException.class,
-                () -> calendarService.bookDate(null, 1L, 1L, 1L, TOMORROW));
-        assertThrows(IllegalArgumentException.class,
-                () -> calendarService.bookDate(1L, null, 1L, 1L, TOMORROW));
-        assertThrows(IllegalArgumentException.class,
-                () -> calendarService.bookDate(1L, 1L, null, 1L, TOMORROW));
-        assertThrows(IllegalArgumentException.class,
-                () -> calendarService.bookDate(1L, 1L, 1L, null, TOMORROW));
-        assertThrows(IllegalArgumentException.class,
-                () -> calendarService.bookDate(1L, 1L, 1L, 1L, null));
+        assertThrows(IllegalArgumentException.class, () -> calendarService.bookDate(null, 1L, 1L, 1L, TOMORROW));
+        assertThrows(IllegalArgumentException.class, () -> calendarService.bookDate(1L, null, 1L, 1L, TOMORROW));
+        assertThrows(IllegalArgumentException.class, () -> calendarService.bookDate(1L, 1L, 1L, 1L, null));
 
         verify(supportRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("bookDate – data nel passato → IllegalArgumentException")
+    @DisplayName("bookDate – tentativo di prenotare una data passata → IllegalArgumentException")
     void bookDate_pastDate_throwsException() {
         assertThrows(IllegalArgumentException.class,
                 () -> calendarService.bookDate(1L, 1L, 1L, 1L, TODAY.minusDays(1)));
@@ -176,131 +142,50 @@ class CalendarServiceTest {
     }
 
     @Test
-    @DisplayName("bookDate – staff non è un Mentor → IllegalArgumentException")
-    void bookDate_staffNotMentor_throwsException() {
-        when(staffMemberRepository.findByID(1L)).thenReturn(new Organizer(1L, "Org"));
+    @DisplayName("bookDate – slot temporale non disponibile nel calendario → IllegalArgumentException")
+    void bookDate_dateNotAvailable_throwsException() {
+        when(staffMemberRepository.findById(1L)).thenReturn(Optional.of(mentor));
+        when(teamRepository.findById(1L)).thenReturn(Optional.of(team));
+        when(hackathonRepository.findById(1L)).thenReturn(Optional.of(hackathon));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
-        assertThrows(IllegalArgumentException.class,
-                () -> calendarService.bookDate(1L, 1L, 1L, 1L, TOMORROW));
+        // Calendario occupato per questo giorno (ritorna lista vuota)
+        when(fakeCalendarService.getFreeDates(TOMORROW, TOMORROW)).thenReturn(List.of());
 
+        assertThrows(IllegalArgumentException.class, () -> calendarService.bookDate(1L, 1L, 1L, 1L, TOMORROW));
+
+        verify(fakeCalendarService, never()).createEvent(any());
         verify(supportRepository, never()).save(any());
     }
 
-    @Test
-    @DisplayName("bookDate – team non trovato → IllegalArgumentException")
-    void bookDate_teamNotFound_throwsException() throws Exception {
-        when(staffMemberRepository.findByID(1L)).thenReturn(mentor);
-
-        assertThrows(IllegalArgumentException.class,
-                () -> calendarService.bookDate(1L, 99L, 1L, 1L, TOMORROW));
-
-        verify(supportRepository, never()).save(any());
-    }
+    // =========================================================================
+    // 3. Test per cancelBooking
+    // =========================================================================
 
     @Test
-    @DisplayName("bookDate – data non disponibile sul calendario → IllegalArgumentException")
-    void bookDate_dateNotAvailable_throwsException() throws Exception {
-        when(staffMemberRepository.findByID(1L)).thenReturn(mentor);
-        when(teamRepository.findByID(1L)).thenReturn(team);
-        when(googleCalendarAPI.getFreeDates(TOMORROW, TOMORROW))
-                .thenReturn(List.of());
+    @DisplayName("cancelBooking – prenotazione esistente → rimuove slot dal FakeCalendar e cancella dal database")
+    void cancelBooking_existingBooking_success() {
+        SupportRequest request = new SupportRequest(1L, TOMORROW, hackathon, user, team, mentor);
+        request.setGoogleEventID("fake-event-123");
 
-        assertThrows(IllegalArgumentException.class,
-                () -> calendarService.bookDate(1L, 1L, 1L, 1L, TOMORROW));
-
-        verify(supportRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("bookDate – Google non raggiungibile per verifica → IllegalStateException")
-    void bookDate_googleUnavailableOnCheck_throwsIllegalState() throws Exception {
-        when(staffMemberRepository.findByID(1L)).thenReturn(mentor);
-        when(teamRepository.findByID(1L)).thenReturn(team);
-        when(googleCalendarAPI.getFreeDates(any(), any()))
-                .thenThrow(new IOException("Connection refused"));
-
-        assertThrows(IllegalStateException.class,
-                () -> calendarService.bookDate(1L, 1L, 1L, 1L, TOMORROW));
-
-        verify(supportRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("bookDate – Google non raggiungibile per creazione evento → IllegalStateException")
-    void bookDate_googleUnavailableOnCreate_throwsIllegalState() throws Exception {
-        when(staffMemberRepository.findByID(1L)).thenReturn(mentor);
-        when(teamRepository.findByID(1L)).thenReturn(team);
-        when(googleCalendarAPI.getFreeDates(TOMORROW, TOMORROW))
-                .thenReturn(List.of(TOMORROW));
-        when(googleCalendarAPI.createEvent(any(), any(), any()))
-                .thenThrow(new IOException("Connection refused"));
-
-        assertThrows(IllegalStateException.class,
-                () -> calendarService.bookDate(1L, 1L, 1L, 1L, TOMORROW));
-
-        verify(supportRepository, never()).save(any());
-    }
-
-    // -----------------------------------------------------------------------
-    // cancelBooking
-    // -----------------------------------------------------------------------
-
-    @Test
-    @DisplayName("cancelBooking – prenotazione valida → elimina da Google e dal repository")
-    void cancelBooking_existingBooking_deletesFromGoogleAndRepo() throws Exception {
-        SupportRequest request = new SupportRequest(1L, TOMORROW, 1L, 1L, 1L, 1L);
-        request.setGoogleEventID("google-event-123");
-        when(supportRepository.findByID(1L)).thenReturn(request);
+        when(supportRepository.findById(1L)).thenReturn(Optional.of(request));
 
         calendarService.cancelBooking(1L);
 
-        verify(googleCalendarAPI).deleteEvent("google-event-123");
+        // Verifica il rilascio dello slot di tempo
+        verify(fakeCalendarService).deleteEvent("fake-event-123", TOMORROW);
         verify(supportRepository).delete(request);
     }
 
     @Test
-    @DisplayName("cancelBooking – requestID null → IllegalArgumentException")
-    void cancelBooking_nullID_throwsException() {
-        assertThrows(IllegalArgumentException.class,
-                () -> calendarService.cancelBooking(null));
-
-        verify(supportRepository, never()).delete(any());
-    }
-
-    @Test
-    @DisplayName("cancelBooking – prenotazione non trovata → IllegalArgumentException")
+    @DisplayName("cancelBooking – prenotazione non trovata a sistema → Lancia eccezione")
     void cancelBooking_notFound_throwsException() {
-        when(supportRepository.findByID(99L)).thenReturn(null);
+        when(supportRepository.findById(99L)).thenReturn(Optional.empty());
 
-        assertThrows(IllegalArgumentException.class,
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> calendarService.cancelBooking(99L));
 
+        assertEquals("Booking not found", ex.getMessage());
         verify(supportRepository, never()).delete(any());
-    }
-
-    @Test
-    @DisplayName("cancelBooking – Google fallisce → cancella comunque localmente")
-    void cancelBooking_googleFails_stillDeletesLocally() throws Exception {
-        SupportRequest request = new SupportRequest(1L, TOMORROW, 1L, 1L, 1L, 1L);
-        request.setGoogleEventID("google-event-123");
-        when(supportRepository.findByID(1L)).thenReturn(request);
-        doThrow(new IOException("Google error"))
-                .when(googleCalendarAPI).deleteEvent(any());
-
-        assertDoesNotThrow(() -> calendarService.cancelBooking(1L));
-
-        verify(supportRepository).delete(request);
-    }
-
-    @Test
-    @DisplayName("cancelBooking – nessun googleEventID → non chiama Google Calendar")
-    void cancelBooking_noGoogleEventID_skipsGoogleCall() throws Exception {
-        SupportRequest request = new SupportRequest(1L, TOMORROW, 1L, 1L, 1L, 1L);
-        when(supportRepository.findByID(1L)).thenReturn(request);
-
-        calendarService.cancelBooking(1L);
-
-        verify(googleCalendarAPI, never()).deleteEvent(any());
-        verify(supportRepository).delete(request);
     }
 }

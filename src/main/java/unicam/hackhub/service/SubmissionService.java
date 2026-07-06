@@ -1,10 +1,12 @@
 package unicam.hackhub.service;
 
+import org.springframework.stereotype.Service;
 import unicam.hackhub.model.*;
 import unicam.hackhub.repository.*;
 
 import java.time.LocalDate;
 
+@Service
 public class SubmissionService {
 
     private final SubmissionRepository submissionRepository;
@@ -15,7 +17,8 @@ public class SubmissionService {
 
     public SubmissionService(SubmissionRepository submissionRepository,
                              TeamRepository teamRepository,
-                             StaffMemberRepository staffMemberRepository, UserRepository userRepository,
+                             StaffMemberRepository staffMemberRepository,
+                             UserRepository userRepository,
                              HackathonRepository hackathonRepository) {
         this.submissionRepository = submissionRepository;
         this.teamRepository = teamRepository;
@@ -25,15 +28,14 @@ public class SubmissionService {
     }
 
     /**
-     * Aggiunge una submission ad un team.
+     * Aggiunge una submission a un team.
      */
     public Submission uploadSubmission(Long teamID, Submission submission) {
         if (teamID == null || submission == null)
             throw new IllegalArgumentException("Team ID and submission cannot be null");
 
-        Team team = teamRepository.findByID(teamID);
-        if (team == null)
-            throw new IllegalArgumentException("Team not found");
+        Team team = teamRepository.findById(teamID)
+                .orElseThrow(() -> new IllegalArgumentException("Team not found"));
 
         if (team.getSubmission() != null)
             throw new IllegalArgumentException("Submission already exists for this team");
@@ -54,155 +56,112 @@ public class SubmissionService {
         if (submissionID == null || name == null || name.trim().isEmpty())
             throw new IllegalArgumentException("Submission data cannot be null or empty");
 
-        Submission submission = submissionRepository.findByID(submissionID);
-        if (submission == null)
-            throw new IllegalArgumentException("Submission not found");
+        Submission submission = submissionRepository.findById(submissionID)
+                .orElseThrow(() -> new IllegalArgumentException("Submission not found"));
 
         submission.setName(name);
         submission.setSubmissionOnDate(LocalDate.now());
-        submissionRepository.save(submission);
-
-        return submission;
+        return submissionRepository.save(submission);
     }
 
     /**
-     * Elimina una sottomissione seguendo il flusso del sequence diagram:
-     * 1. Verifica che i dati siano corretti
-     * 2. Prende la sottomissione, il team e il membro del team
-     * 3. Verifica che il membro del team sia presente nel team
-     * 4. Verifica che la sottomissione appartenga al team
-     * 5. Elimina la sottomissione
+     * Elimina una sottomissione.
+     * 1. Verifica dati e recupera entità
+     * 2. Verifica che l'utente faccia parte del team
+     * 3. Verifica che la submission appartenga al team
+     * 4. Elimina la submission
      */
     public void deleteSubmission(Long submissionID, Long userID, Long teamID) {
-
-        // 1. Verifica che i dati siano corretti
-        if(submissionID == null || userID == null  || teamID == null)
+        if (submissionID == null || userID == null || teamID == null)
             throw new IllegalArgumentException("submissionID, userID and teamID cannot be null");
 
-        // 2. Prende la sottomissione
-        Submission submission = submissionRepository.findByID(submissionID);
-        if (submission == null)
-            throw new IllegalArgumentException("Submission not found");
+        Submission submission = submissionRepository.findById(submissionID)
+                .orElseThrow(() -> new IllegalArgumentException("Submission not found"));
 
-        // 3. Prende il team
-        Team team = teamRepository.findByID(teamID);
-        if (team == null) {
-            throw new IllegalArgumentException("Team does not exist");
-        }
+        teamRepository.findById(teamID)
+                .orElseThrow(() -> new IllegalArgumentException("Team does not exist"));
 
-        // 4. Prende il membro del team
-        User user = userRepository.findByID(userID);
-        if (user == null)
-            throw new IllegalArgumentException("User does not exist");
+        User user = userRepository.findById(userID)
+                .orElseThrow(() -> new IllegalArgumentException("User does not exist"));
 
-        // 5. Verifica che il membro del team sia presente nel team della sottomissione che vuole eliminare
         Team teamUser = user.getCurrentTeam();
-        if (teamUser == null) {
+        if (teamUser == null)
             throw new IllegalArgumentException("User is not in a team");
-        }
-        if (!teamUser.getId().equals(teamID)) {
+        if (!teamUser.getId().equals(teamID))
             throw new IllegalArgumentException("User is not in this team");
-        }
 
-        //6. Verifica che la sottomissione appartenga al team
         Submission submissionToDelete = teamUser.getSubmission();
         if (submissionToDelete == null)
             throw new IllegalArgumentException("Submission not found");
-        if (!submissionToDelete.getId().equals(submissionID)) {
+        if (!submissionToDelete.getId().equals(submissionID))
             throw new IllegalArgumentException("Submission is not in the team");
-        }
 
-        // 7. Elimina la sottomissione
         submissionRepository.delete(submission);
-
-        // 8. Visualizza notifica di successo
-        System.out.println("Submission has been deleted");
     }
 
     /**
      * Valuta una sottomissione.
-     * Segue il sequence diagram di "Valuta Sottomissione":
-     * 1. Verifica dati validi
-     * 2. Recupera il giudice e verifica che esista
-     * 3. Recupera la submission e verifica che esista
-     * 4. Verifica che non sia già stata valutata
-     * 5. Delega la valutazione a Judge.evaluateSubmission()
-     * 6. Salva la submission aggiornata
+     * 1. Recupera il giudice
+     * 2. Recupera la submission e verifica che non sia già valutata
+     * 3. Delega la valutazione a Judge.evaluateSubmission()
+     * 4. Salva la submission aggiornata
      */
-    public Evaluation evaluateSubmission(Long judgeID, Long submissionID, int grade, String briefJudgment) {
-        // 1. Verifica dati validi
+    public Evaluation evaluateSubmission(Long judgeID, Long submissionID,
+                                         int grade, String briefJudgment) {
         if (judgeID == null || submissionID == null
                 || briefJudgment == null || briefJudgment.trim().isEmpty())
             throw new IllegalArgumentException("Invalid data");
 
-        // 2. Recupera il giudice
-        StaffMember staff = staffMemberRepository.findByID(judgeID);
-        if (!(staff instanceof Judge))
-            throw new IllegalArgumentException("Judge not found");
-        Judge judge = (Judge) staff;
+        Judge judge = (Judge) staffMemberRepository.findById(judgeID)
+                .filter(s -> s instanceof Judge)
+                .orElseThrow(() -> new IllegalArgumentException("Judge not found"));
 
-        // 3. Recupera la submission
-        Submission submission = submissionRepository.findByID(submissionID);
-        if (submission == null)
-            throw new IllegalArgumentException("Submission not found");
+        Submission submission = submissionRepository.findById(submissionID)
+                .orElseThrow(() -> new IllegalArgumentException("Submission not found"));
 
-        // 4. Verifica che non sia già stata valutata
         if (submission.getGrade() != null)
             throw new IllegalArgumentException("Submission already evaluated");
 
-        // 5. Delega la valutazione all'entità Judge
-        Evaluation evaluation = judge.evaluateSubmission(submission, grade, briefJudgment);
-
-        // 6. Salva la submission aggiornata con la valutazione
+        Evaluation evaluation = new Evaluation(briefJudgment, grade);
+        submission.setGrade(evaluation);
         submissionRepository.save(submission);
-
         return evaluation;
     }
 
     /**
      * Modifica la valutazione di una sottomissione.
-     * Segue il sequence diagram di "Modifica Valutazione Sottomissione":
-     * 1. Verifica dati validi
-     * 2. Recupera il giudice e verifica che esista
-     * 3. Recupera l'hackathon e verifica che sia nello stato "in corso"
-     * 4. Recupera la valutazione e verifica che esista
-     * 5. Recupera la submission e verifica che esista
-     * 6. Delega la modifica della valutazione a Judge.editEvaluateSubmission()
-     * 7. Salva la submission aggiornata
+     * 1. Recupera il giudice e l'hackathon
+     * 2. Recupera valutazione e submission
+     * 3. Delega la modifica a Judge.editEvaluateSubmission()
+     * 4. Salva la submission aggiornata
      */
-    public Evaluation editEvaluateSubmission(Long judgeID, Long submissionID, Long hackathonID,
-                                             Long evaluationID, int grade, String briefJudgment) {
-        // 1. Verifica dai validi
-        if (judgeID == null || submissionID == null || evaluationID == null ||
-                grade<0 || grade>10 || briefJudgment==null || briefJudgment.trim().isEmpty())
+    public Evaluation editEvaluateSubmission(Long judgeID, Long submissionID,
+                                             Long hackathonID, Long evaluationID,
+                                             int grade, String briefJudgment) {
+        if (judgeID == null || submissionID == null || evaluationID == null
+                || grade < 0 || grade > 10
+                || briefJudgment == null || briefJudgment.trim().isEmpty())
             throw new IllegalArgumentException("Invalid data");
 
-        // 2. Recupera il giudice
-        Judge judge = staffMemberRepository.getJudge(judgeID);
+        Judge judge = (Judge) staffMemberRepository.findById(judgeID)
+                .filter(s -> s instanceof Judge)
+                .orElseThrow(() -> new IllegalArgumentException("Judge not found"));
 
-        // 3. Recupera l'hackathon
-        Hackathon hackathon = hackathonRepository.findByID(hackathonID);
+        hackathonRepository.findById(hackathonID)
+                .orElseThrow(() -> new IllegalArgumentException("Hackathon not found"));
 
-        // 4. Verifica che l'hackathon sia nello stato "in corso"
-        hackathon.isRegistrationOpen();
+        Submission submission = submissionRepository.findById(submissionID)
+                .orElseThrow(() -> new IllegalArgumentException("Submission not found"));
 
-        // 5. Recupera la valutazione da modificare
-        Evaluation evaluation = submissionRepository.findEvaluationByID(evaluationID);
-        if(evaluation == null)
+        Evaluation evaluation = submission.getGrade();
+        if (evaluation == null || !evaluation.getId().equals(evaluationID))
             throw new IllegalArgumentException("Evaluation not found");
 
-        // 6. Recupera la sottomissione valutata
-        Submission submission = submissionRepository.findByID(submissionID);
-        if (submission == null)
-            throw new IllegalArgumentException("Submission not found");
-
-        // 7. Delega la modifica della valutazione all'entità Judge
-        judge.editEvaluateSubmission(submission, evaluation, grade, briefJudgment);
-
-        // 8. Salva la submission aggiornata con la valutazione
+        evaluation.setGrade(grade);
+        evaluation.setBriefJudgement(briefJudgment);
+        submission.setGrade(evaluation);
         submissionRepository.save(submission);
 
         return evaluation;
     }
-
 }

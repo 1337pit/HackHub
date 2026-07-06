@@ -1,8 +1,10 @@
 package unicam.hackhub.service;
 
+import org.springframework.stereotype.Service;
 import unicam.hackhub.model.User;
 import unicam.hackhub.repository.UserRepository;
 
+@Service
 public class UserService {
 
     private final UserRepository userRepository;
@@ -12,10 +14,8 @@ public class UserService {
     }
 
     public User getUser(Long userID) {
-        User user = userRepository.findByID(userID);
-        if (user == null)
-            throw new IllegalArgumentException("User not found");
-        return user;
+        return userRepository.findById(userID)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
     }
 
     public void checkEligibility(User user) {
@@ -27,39 +27,30 @@ public class UserService {
 
     /**
      * Modifica il profilo dell'utente.
-     * Segue il sequence diagram di "Modifica Profilo":
      * 1. Verifica che i dati siano validi
      * 2. Recupera l'utente
      * 3. Verifica che la nuova email non sia già in uso
      * 4. Aggiorna e salva il profilo
      */
     public User updateProfile(Long userID, String name, String email) {
-        // 1. Verifica dati validi
         if (userID == null || name == null || name.trim().isEmpty()
                 || email == null || email.trim().isEmpty())
             throw new IllegalArgumentException("Invalid data");
 
-        // 2. Recupera l'utente
-        User user = userRepository.findByID(userID);
-        if (user == null)
-            throw new IllegalArgumentException("User not found");
+        User user = userRepository.findById(userID)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        // 3. Verifica che la nuova email non sia già in uso da un altro utente
-        User existingWithEmail = userRepository.findByEmail(email);
-        if (existingWithEmail != null && !existingWithEmail.getId().equals(userID))
-            throw new IllegalArgumentException("Email already in use");
+        userRepository.findByEmail(email)
+                .filter(u -> !u.getId().equals(userID))
+                .ifPresent(u -> { throw new IllegalArgumentException("Email already in use"); });
 
-        // 4. Aggiorna e salva
         user.setName(name);
         user.setEmail(email);
-        userRepository.save(user);
-
-        return user;
+        return userRepository.save(user);
     }
 
     /**
      * Elimina il profilo dell'utente.
-     * Segue il sequence diagram di "Elimina Profilo":
      * 1. Recupera l'utente
      * 2. Elimina il profilo
      */
@@ -67,12 +58,9 @@ public class UserService {
         if (userID == null)
             throw new IllegalArgumentException("User ID cannot be null");
 
-        // 1. Recupera l'utente
-        User user = userRepository.findByID(userID);
-        if (user == null)
-            throw new IllegalArgumentException("User not found");
+        User user = userRepository.findById(userID)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        // 2. Elimina
         userRepository.delete(user);
     }
 }

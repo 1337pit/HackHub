@@ -3,159 +3,83 @@ package Handler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.Mockito;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import unicam.hackhub.handler.UserHandler;
 import unicam.hackhub.model.User;
 import unicam.hackhub.service.UserService;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-/**
- * Test unitari per UserHandler.
- *
- * Verifica che l'handler:
- *  - deleghi correttamente a UserService
- *  - gestisca le eccezioni restituendo null (updateProfile) o false (deleteProfile)
- */
-@ExtendWith(MockitoExtension.class)
 class UserHandlerTest {
 
-    @Mock
     private UserService userService;
-
     private UserHandler userHandler;
+    private User mockUser;
 
     @BeforeEach
     void setUp() {
+        // Mocking del servizio e iniezione nel costruttore dell'handler
+        userService = Mockito.mock(UserService.class);
         userHandler = new UserHandler(userService);
+        mockUser = Mockito.mock(User.class);
     }
 
-    // -----------------------------------------------------------------------
-    // updateProfile - Happy path
-    // -----------------------------------------------------------------------
+    // =======================================================================
+    // 1. Test per updateProfile (PUT)
+    // =======================================================================
 
     @Test
-    @DisplayName("updateProfile – profilo aggiornato con successo → restituisce l'utente")
-    void updateProfile_success_returnsUser() {
-        User expectedUser = new User(1L, "Alice Updated", "alice.new@test.it");
-        when(userService.updateProfile(1L, "Alice Updated", "alice.new@test.it"))
-                .thenReturn(expectedUser);
+    @DisplayName("updateProfile – Successo restituisce 200 OK")
+    void updateProfile_Success() {
+        when(userService.updateProfile(1L, "Alice Updated", "alice.new@test.it")).thenReturn(mockUser);
 
-        User result = userHandler.updateProfile(1L, "Alice Updated", "alice.new@test.it");
+        ResponseEntity<User> response = userHandler.updateProfile(1L, "Alice Updated", "alice.new@test.it");
 
-        assertNotNull(result);
-        assertEquals("Alice Updated", result.getName());
-        assertEquals("alice.new@test.it", result.getEmail());
-        verify(userService, times(1)).updateProfile(1L, "Alice Updated", "alice.new@test.it");
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(mockUser, response.getBody());
+        verify(userService).updateProfile(1L, "Alice Updated", "alice.new@test.it");
     }
 
-    // -----------------------------------------------------------------------
-    // updateProfile - Gestione errori: l'handler cattura IllegalArgumentException
-    // e restituisce null
-    // -----------------------------------------------------------------------
-
     @Test
-    @DisplayName("updateProfile – dati invalidi → handler restituisce null")
-    void updateProfile_invalidData_returnsNull() {
-        when(userService.updateProfile(anyLong(), any(), any()))
+    @DisplayName("updateProfile – Dati invalidi restituisce 400 Bad Request")
+    void updateProfile_BadRequest() {
+        when(userService.updateProfile(anyLong(), anyString(), anyString()))
                 .thenThrow(new IllegalArgumentException("Invalid data"));
 
-        User result = userHandler.updateProfile(1L, "", "");
+        ResponseEntity<User> response = userHandler.updateProfile(1L, "", "");
 
-        assertNull(result);
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNull(response.getBody());
     }
 
-    @Test
-    @DisplayName("updateProfile – utente non trovato → handler restituisce null")
-    void updateProfile_userNotFound_returnsNull() {
-        when(userService.updateProfile(anyLong(), any(), any()))
-                .thenThrow(new IllegalArgumentException("User not found"));
-
-        User result = userHandler.updateProfile(99L, "Alice", "alice@test.it");
-
-        assertNull(result);
-    }
+    // =======================================================================
+    // 2. Test per deleteProfile (DELETE)
+    // =======================================================================
 
     @Test
-    @DisplayName("updateProfile – email già in uso → handler restituisce null")
-    void updateProfile_emailAlreadyInUse_returnsNull() {
-        when(userService.updateProfile(anyLong(), any(), any()))
-                .thenThrow(new IllegalArgumentException("Email already in use"));
-
-        User result = userHandler.updateProfile(1L, "Alice", "bob@test.it");
-
-        assertNull(result);
-    }
-
-    // -----------------------------------------------------------------------
-    // updateProfile - Delega: l'handler non fa logica, la lascia tutta al service
-    // -----------------------------------------------------------------------
-
-    @Test
-    @DisplayName("updateProfile – i parametri vengono passati intatti al service")
-    void updateProfile_parametersPassedThrough() {
-        User expectedUser = new User(1L, "Alice", "alice@test.it");
-        when(userService.updateProfile(1L, "Alice", "alice@test.it")).thenReturn(expectedUser);
-
-        userHandler.updateProfile(1L, "Alice", "alice@test.it");
-
-        verify(userService).updateProfile(1L, "Alice", "alice@test.it");
-    }
-
-    // -----------------------------------------------------------------------
-    // deleteProfile - Happy path
-    // -----------------------------------------------------------------------
-
-    @Test
-    @DisplayName("deleteProfile – eliminazione riuscita → restituisce true")
-    void deleteProfile_success_returnsTrue() {
+    @DisplayName("deleteProfile – Successo restituisce 240 No Content")
+    void deleteProfile_Success() {
         doNothing().when(userService).deleteProfile(1L);
 
-        boolean result = userHandler.deleteProfile(1L);
+        ResponseEntity<Void> response = userHandler.deleteProfile(1L);
 
-        assertTrue(result);
-        verify(userService, times(1)).deleteProfile(1L);
-    }
-
-    // -----------------------------------------------------------------------
-    // deleteProfile - Gestione errori: l'handler cattura IllegalArgumentException
-    // e restituisce false
-    // -----------------------------------------------------------------------
-
-    @Test
-    @DisplayName("deleteProfile – userID null → handler restituisce false")
-    void deleteProfile_nullUserID_returnsFalse() {
-        doThrow(new IllegalArgumentException("User ID cannot be null"))
-                .when(userService).deleteProfile(null);
-
-        boolean result = userHandler.deleteProfile(null);
-
-        assertFalse(result);
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+        verify(userService).deleteProfile(1L);
     }
 
     @Test
-    @DisplayName("deleteProfile – utente non trovato → handler restituisce false")
-    void deleteProfile_userNotFound_returnsFalse() {
+    @DisplayName("deleteProfile – Utente non trovato restituisce 404 Not Found")
+    void deleteProfile_NotFound() {
         doThrow(new IllegalArgumentException("User not found"))
                 .when(userService).deleteProfile(99L);
 
-        boolean result = userHandler.deleteProfile(99L);
+        ResponseEntity<Void> response = userHandler.deleteProfile(99L);
 
-        assertFalse(result);
-    }
-
-    // -----------------------------------------------------------------------
-    // deleteProfile - Delega: l'handler non fa logica, la lascia tutta al service
-    // -----------------------------------------------------------------------
-
-    @Test
-    @DisplayName("deleteProfile – l'userID viene passato intatto al service")
-    void deleteProfile_parameterPassedThrough() {
-        userHandler.deleteProfile(1L);
-
-        verify(userService).deleteProfile(1L);
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertNull(response.getBody());
     }
 }

@@ -1,54 +1,37 @@
 package unicam.hackhub.model;
 
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.LocalDate;
 
+@Setter
+@Getter
+@Entity
+@Table(name = "submissions")
 public class Submission {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(nullable = false)
     private LocalDate submissionOnDate;
+
+    @Column(nullable = false)
     private String name;
+
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "evaluation_id")
     private Evaluation grade;
 
-    public Submission() {
-
-    }
+    public Submission() {}
 
     public Submission(Long id, String name) {
         this.id = id;
         this.name = name;
         this.submissionOnDate = LocalDate.now();
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public LocalDate getSubmissionOnDate() {
-        return submissionOnDate;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public Evaluation getGrade() {
-        return grade;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public void setSubmissionOnDate(LocalDate submissionOnDate) {
-        this.submissionOnDate = submissionOnDate;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public void setGrade(Evaluation grade) {
-        this.grade = grade;
     }
 
 }

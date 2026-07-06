@@ -1,11 +1,15 @@
 package unicam.hackhub.service;
 
+import org.springframework.stereotype.Service;
 import unicam.hackhub.model.*;
+import unicam.hackhub.model.state.ConcludedState;
 import unicam.hackhub.repository.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Collectors;
 
+@Service
 public class HackathonService {
 
     private final HackathonRepository hackathonRepository;
@@ -30,195 +34,167 @@ public class HackathonService {
     }
 
     /**
-     * Crea un hackathon seguendo il flusso del sequence diagram:
-     * 1. Verifica che il nome non sia già usato
-     * 2. Verifica che i parametri passati siano corretti
-     * 3. Prende mentore e giudice
-     * 4. Crea e salva l'hackathon
+     * Crea un hackathon.
      */
     public Hackathon createHackathon(String name, String rulebook, LocalDate registrationDeadline,
                                      LocalDate startDate, LocalDate endDate, String location,
-                                     String prize, HackathonState state, int maxTeamSize, Organizer organizer,
-                                     Long mentorID, Long judgeID){
+                                     String prize, HackathonState state, int maxTeamSize,
+                                     Organizer organizer, Long mentorID, Long judgeID) {
 
-        // 1. Verifica che i parametri passati siano corretti
-        validateDates(name, rulebook, registrationDeadline, startDate, endDate, location, prize,
-                state, maxTeamSize, organizer, mentorID, judgeID);
+        validateDates(name, rulebook, registrationDeadline, startDate, endDate,
+                location, prize, state, maxTeamSize, organizer, mentorID, judgeID);
 
-        // 2. Verifica che il nome dell'hackathon non sia già in uso
         existsHackathonByName(name);
 
-        // 3. Prende il mentore
-        List<Mentor> mentor = staffMemberRepository.getMentor(mentorID);
+        Mentor mentor = (Mentor) staffMemberRepository.findById(mentorID)
+                .filter(s -> s instanceof Mentor)
+                .orElseThrow(() -> new IllegalArgumentException("Staff member not found"));
 
-        // 4. Prende il giudice
-        Judge judge = staffMemberRepository.getJudge(judgeID);
+        Judge judge = (Judge) staffMemberRepository.findById(judgeID)
+                .filter(s -> s instanceof Judge)
+                .orElseThrow(() -> new IllegalArgumentException("Staff member not found"));
 
-        if(mentor == null || mentor.isEmpty() || judge == null){
-            throw new IllegalArgumentException("Staff member not found");
-        }
+        Hackathon hackathon = new Hackathon(name, rulebook, registrationDeadline, startDate,
+                endDate, location, prize, state, maxTeamSize, organizer, judge, List.of(mentor));
 
-        // 5. Crea l'hackathon
-        Hackathon hackathon = new Hackathon(name, rulebook, registrationDeadline, startDate, endDate,
-                                            location, prize, state, maxTeamSize, organizer, judge, mentor);
-
-        // 6. Salva l'hackathon
-        hackathonRepository.save(hackathon);
-
-        return hackathon;
+        return hackathonRepository.save(hackathon);
     }
 
     /**
-     * Mmodifica un hackathon seguendo il flusso del sequence diagram:
-     * 1. Verifica che l'hackathon esiste
-     * 2. Verifica che l'hackathon sia nello stato "in corso"
-     * 3. Delega la modifica dell'hackathon all'organizzatore
-     * 4. Modifica e salva l'hackathon modificato
+     * Modifica un hackathon esistente.
      */
-    public Hackathon editHackathon(Long hackathonID, String name, String rulebook, LocalDate registrationDeadline,
-                                   String location, String prize, int maxTeamSize, Judge judge, Mentor mentor) {
+    public Hackathon editHackathon(Long hackathonID, String name, String rulebook,
+                                   LocalDate registrationDeadline, String location,
+                                   String prize, int maxTeamSize, Long judgeID, Long mentorID) {
+        Hackathon hackathon = hackathonRepository.findById(hackathonID)
+                .orElseThrow(() -> new IllegalArgumentException("Hackathon not found"));
 
-        // 1. Verifica che l'hackathon esiste
-        Hackathon hackathon = hackathonRepository.findByID(hackathonID);
-        if(hackathon == null){
-            throw new IllegalArgumentException("Hackathon not found");
+        Judge judge = null;
+        if (judgeID != null) {
+            judge = (Judge) staffMemberRepository.findById(judgeID)
+                    .filter(s -> s instanceof Judge)
+                    .orElseThrow(() -> new IllegalArgumentException("Judge not found"));
         }
 
-        // 2. Verifica che l'hackathon è nello stato "in corso"
-        hackathon.isRegistrationOpen();
+        Mentor mentor = null;
+        if (mentorID != null) {
+            mentor = (Mentor) staffMemberRepository.findById(mentorID)
+                    .filter(s -> s instanceof Mentor)
+                    .orElseThrow(() -> new IllegalArgumentException("Mentor not found"));
+        }
 
-        // 3. Ritorna l'organizzatore dell'hackathon
-        Organizer organizer = hackathon.getOrganizer();
+        checkHackathonAvailability(hackathon);
 
-        // 4. Delega la modifica dell'hackathon all'organizzatore
-        Hackathon editedHackathon = organizer.editHackathon(name, rulebook, registrationDeadline,
-                location, prize, maxTeamSize, judge, mentor);
+        if (name != null) hackathon.setNameHackathon(name);
+        if (rulebook != null) hackathon.setRulebook(rulebook);
+        if (registrationDeadline != null) hackathon.setRegistrationDeadline(registrationDeadline);
+        if (location != null) hackathon.setLocation(location);
+        if (prize != null) hackathon.setPrize(prize);
+        if (maxTeamSize > 0) hackathon.setMaxTeamSize(maxTeamSize);
+        if (judge != null) hackathon.setJudge(judge);
+        if (mentor != null) addMentor(mentor.getEmail(), hackathonID);
 
-        // 5. Salva l'hackathon modificato
-        hackathonRepository.save(editedHackathon);
-
-        return editedHackathon;
+        return hackathonRepository.save(hackathon);
     }
 
     /**
-     * Aggiunge un Mentore seguendo il flusso del sequence diagram:
-     * 1. Verifica che l'utente esiste
-     * 2. Verifica che l'utente non sia già Mentore o Giudice
-     * 3. Associa l'utente come Mentore all'hackathon corrente
-     * 4. Salva il Mentore
+     * Aggiunge un Mentore a un hackathon.
      */
-    public void addMentor(String email, Long hackathonID) {
+    public Mentor addMentor(String email, Long hackathonID) {
+        Hackathon hackathon = hackathonRepository.findById(hackathonID)
+                .orElseThrow(() -> new IllegalArgumentException("Hackathon not found"));
 
-        // 1. Ritorna l'hackathon con l'hackathonID passato
-        Hackathon hackathon = hackathonRepository.findByID(hackathonID);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        // 2. Ritorna l'utente con l'email passata
-        User user = userRepository.findByEmail(email);
+        staffMemberRepository.findByEmail(email).ifPresent(staff -> {
+            if (staff instanceof Mentor)
+                throw new IllegalArgumentException("User already Mentor");
+            if (staff instanceof Judge)
+                throw new IllegalArgumentException("User already Judge");
+        });
 
-        // 3. Verifica che l'utente esiste
-        if (user == null) {
-            throw new IllegalArgumentException("User not found");
-        }
-
-        // 4. Verifica che l'utente non sia già Mentore o Giudice
-        StaffMember staffMember = staffMemberRepository.getStaff(user);
-        if (staffMember instanceof Mentor) {
-             throw new IllegalArgumentException("User already Mentor");
-        }
-        if (staffMember instanceof Judge) {
-            throw new IllegalArgumentException("User already Judge");
-        }
-
-        // 5. Associa l'utente come Mentore all'hackathon corrente
-        Mentor mentor = new Mentor(user.getId(), user.getName(), email, hackathon);
+        Mentor mentor = new Mentor(null, user.getName(), email, hackathon);
         hackathon.addMentor(mentor);
-
-        // 6. Salva il Mentore
-        staffMemberRepository.save(mentor);
-
-        // 7. Mostra notifica di successo
-        System.out.println("Mentor added succesfully");
+        return mentor;
     }
 
     /**
      * Restituisce gli hackathon assegnati a un membro dello staff.
-     * Il membro può essere organizzatore, giudice o mentore.
      */
     public List<Hackathon> getAssignedHackathons(Long staffMemberID) {
-        if (staffMemberID == null) {
+        if (staffMemberID == null)
             throw new IllegalArgumentException("Staff member ID cannot be null");
-        }
 
-        StaffMember staffMember = staffMemberRepository.findByID(staffMemberID);
+        staffMemberRepository.findById(staffMemberID)
+                .orElseThrow(() -> new IllegalArgumentException("Staff member not found"));
 
-        if (staffMember == null) {
-            throw new IllegalArgumentException("Staff member not found");
-        }
-
-        return hackathonRepository.findByStaffMember(staffMemberID);
+        return hackathonRepository.findByStaffMemberId(staffMemberID);
     }
 
     /**
-     * Restituisce i team registrati con i relativi partecipanti
-     * per un hackathon assegnato al membro dello staff.
+     * Restituisce i team registrati per un hackathon assegnato allo staff member.
      */
     public List<Registration> getParticipants(Long staffMemberID, Long hackathonID) {
-        if (staffMemberID == null || hackathonID == null) {
+        if (staffMemberID == null || hackathonID == null)
             throw new IllegalArgumentException("Staff member ID and hackathon ID cannot be null");
-        }
 
-        List<Hackathon> assignedHackathons = getAssignedHackathons(staffMemberID);
+        Hackathon hackathon = checkAssignedHackathon(staffMemberID, hackathonID);
 
-        boolean assigned = false;
-
-        for (Hackathon hackathon : assignedHackathons) {
-            if (hackathon.getId() != null && hackathon.getId().equals(hackathonID)) {
-                assigned = true;
-                break;
-            }
-        }
-
-        if (!assigned) {
-            throw new IllegalArgumentException("Hackathon not assigned to staff member");
-        }
-
-        List<Registration> registrations =
-                registrationRepository.findByHackathon(hackathonID);
-
-        if (registrations == null || registrations.isEmpty()) {
+        List<Registration> registrations = registrationRepository.findByHackathon(hackathon);
+        if (registrations.isEmpty())
             throw new IllegalArgumentException("No participant registered");
-        }
 
         return registrations;
     }
 
     /**
-     * Dichiara il team vincitore seguendo il flusso del sequence diagram:
-     * 1. Verifica che i dati siano corretti
-     * 2. Prende l'organizzatore e il team vincitore
-     * 3. Dichiara il team vincitore
+     * Recupera la lista delle richieste di supporto per un hackathon.
      */
-    public void declareWinner(Long organizerID, Long teamID){
+    public List<SupportRequest> getRequestsSupport(Long mentorID, Long hackathonID) {
+        if (mentorID == null || hackathonID == null)
+            throw new IllegalArgumentException("Mentor ID and hackathon ID cannot be null");
 
-        // 1. Verifica che i dati siano corretti
-        if (organizerID == null || teamID == null) {
-            throw new IllegalArgumentException("Organizer ID and Team ID cannot be null");
-        }
+        Mentor mentor = (Mentor) staffMemberRepository.findById(mentorID)
+                .filter(s -> s instanceof Mentor)
+                .orElseThrow(() -> new IllegalArgumentException("Mentor not found"));
 
-        // 2. Prende l'organizzatore
-        Organizer organizer = staffMemberRepository.getOrganizer(organizerID);
-        if (organizer == null) {
-            throw new IllegalArgumentException("Organizer not found");
-        }
+        checkAssignedHackathon(mentorID, hackathonID);
 
-        // 3. Prende il team vincitore
-        Team winningTeam = teamRepository.findByID(teamID);
-        if (winningTeam == null) {
-            throw new IllegalArgumentException("Team not found");
-        }
+        List<SupportRequest> requestsSupport = supportRepository.findByMentor(mentor);
 
-        // 4. Dichiara il team vincitore
-        organizer.declareWinner(winningTeam);
+        if (requestsSupport == null || requestsSupport.isEmpty())
+            throw new IllegalArgumentException("No request support found");
+
+        return requestsSupport;
+    }
+
+    /**
+     * Dichiara il team vincitore.
+     */
+    public void declareWinner(Long organizerID, Long teamID, Long hackathonID, double prizeAmount) {
+        if (organizerID == null || teamID == null || hackathonID == null)
+            throw new IllegalArgumentException("IDs cannot be null");
+
+        // 1. Verifica che l'organizzatore esista e abbia i permessi
+        User organizer = userRepository.findById(organizerID)
+                .orElseThrow(() -> new IllegalArgumentException("Organizer not found"));
+        // (Opzionale) if (!organizer.isOrganizer()) throw new SecurityException("Not authorized");
+
+        // 2. Recupera l'Hackathon
+        Hackathon hackathon = hackathonRepository.findById(hackathonID)
+                .orElseThrow(() -> new IllegalArgumentException("Hackathon not found"));
+
+        // 3. Recupera il Team vincitore
+        Team winningTeam = teamRepository.findById(teamID)
+                .orElseThrow(() -> new IllegalArgumentException("Team not found"));
+        hackathon.setWinnerTeam(hackathonID);
+
+        // 4. Salva lo stato nel Database
+        hackathon.changeState(new ConcludedState());
+        hackathonRepository.save(hackathon);
+
+        System.out.println("L'organizzatore " + organizer.getName() + " ha proclamato vincitore il Team: " + winningTeam.getTeamName());
     }
 
     public void changeState(HackathonState state) {
@@ -226,79 +202,58 @@ public class HackathonService {
     }
 
     public void existsHackathonByName(String name) {
-        Hackathon hackathon = hackathonRepository.findByName(name);
-        if(hackathon != null){
+        hackathonRepository.findByNameHackathon(name).ifPresent(h -> {
             throw new IllegalArgumentException("Name already used");
-        }
+        });
     }
 
     public void validateDates(String name, String rulebook, LocalDate registrationDeadline,
                               LocalDate startDate, LocalDate endDate, String location,
                               String prize, HackathonState state, int maxTeamSize, Organizer organizer,
-                              Long mentorID, Long judgeID){
-        if(name == null || rulebook == null || registrationDeadline == null || startDate == null
+                              Long mentorID, Long judgeID) {
+        if (name == null || rulebook == null || registrationDeadline == null || startDate == null
                 || endDate == null || location == null || prize == null || state == null
-                || maxTeamSize <= 0 || organizer == null || mentorID == null || judgeID == null){
+                || maxTeamSize <= 0 || organizer == null || mentorID == null || judgeID == null) {
             throw new IllegalArgumentException("Wrong dates selected");
         }
 
-        if(registrationDeadline.isAfter(startDate)){
+        if (registrationDeadline.isAfter(startDate)) {
             throw new IllegalArgumentException("Registration deadline cannot be after start date");
         }
 
-        if(startDate.isAfter(endDate)){
+        if (startDate.isAfter(endDate)) {
             throw new IllegalArgumentException("Start date cannot be after end date");
         }
-
-        if(staffMemberRepository == null){
-            throw new IllegalArgumentException("Staff member repository is not defined");
-        }
-
     }
 
     public void checkHackathonAvailability(Hackathon hackathon) {
-        if(!(hackathon.isRegistrationOpen())) {
+        if (!(hackathon.isRegistrationOpen())) {
             throw new IllegalArgumentException("Hackathon is not open");
         }
     }
 
     public void checkTeamSize(Team team, Hackathon hackathon) {
-        if(team.getSize() > hackathon.getMaxTeamSize()) {
+        if (team.getSize() > hackathon.getMaxTeamSize()) {
             throw new IllegalArgumentException("Team size exceeds limit");
         }
     }
 
-    public void checkTeamAlreadyRegistered(Registration registration){
-        if (registration.exists()) {
+    public void checkTeamAlreadyRegistered(Registration registration) {
+        if (registration != null && registration.exists()) {
             throw new IllegalArgumentException("Team already registered");
         }
     }
 
     /**
      * Recupera la lista delle sottomissioni per un hackathon.
-     * Usato nel caso d'uso "Consulta Elenco Sottomissioni" del Membro Staff.
-     * 1. Verifica che l'hackathon esista
-     * 2. Recupera le sottomissioni tramite SubmissionRepository
      */
     public List<Submission> getSubmissions(Long staffMemberID, Long hackathonID) {
         if (staffMemberID == null || hackathonID == null)
             throw new IllegalArgumentException("Staff member ID and hackathon ID cannot be null");
 
-        List<Hackathon> assignedHackathons = getAssignedHackathons(staffMemberID);
+        Hackathon hackathon = checkAssignedHackathon(staffMemberID, hackathonID);
 
-        boolean assigned = false;
-
-        for (Hackathon hackathon : assignedHackathons) {
-            if (hackathon.getId() != null && hackathon.getId().equals(hackathonID)) {
-                assigned = true;
-                break;
-            }
-        }
-
-        if (!assigned)
-            throw new IllegalArgumentException("Hackathon not assigned to staff member");
-
-        List<Registration> registrations = registrationRepository.findByHackathon(hackathonID);
+        List<Registration> registrations = registrationRepository.findByHackathon(hackathon);
 
         if (registrations == null || registrations.isEmpty())
             throw new IllegalArgumentException("No submissions found");
@@ -306,7 +261,7 @@ public class HackathonService {
         List<Submission> submissions = registrations.stream()
                 .map(r -> r.getTeam().getSubmission())
                 .filter(s -> s != null)
-                .collect(java.util.stream.Collectors.toList());
+                .collect(Collectors.toList());
 
         if (submissions.isEmpty())
             throw new IllegalArgumentException("No submissions found");
@@ -315,35 +270,17 @@ public class HackathonService {
     }
 
     /**
-     * Recupera la lista delle richieste di supporto per un hackathon.
-     * Usato nel caso d'uso "Visualizza Richieste Supporto" del Mentore.
-     * 1. Verifica che l'hackathon esista
-     * 2. Recupera le richieste di supporto tramite SupportRepository
+     * Verifica che un hackathon sia tra quelli assegnati allo staff member
+     * e ne restituisce l'entità. Centralizza una logica ripetuta in più metodi.
      */
-    public List<SupportRequest> getRequestsSupport(Long mentorID, Long hackathonID) {
-        if (mentorID == null || hackathonID == null)
-            throw new IllegalArgumentException("Mentor ID and hackathon ID cannot be null");
-
-        List<Hackathon> assignedHackathons = getAssignedHackathons(mentorID);
-
-        boolean assigned = false;
-
-        for (Hackathon hackathon : assignedHackathons) {
-            if (hackathon.getId() != null && hackathon.getId().equals(hackathonID)) {
-                assigned = true;
-                break;
-            }
-        }
+    private Hackathon checkAssignedHackathon(Long staffMemberID, Long hackathonID) {
+        boolean assigned = getAssignedHackathons(staffMemberID).stream()
+                .anyMatch(h -> h.getId() != null && h.getId().equals(hackathonID));
 
         if (!assigned)
-            throw new IllegalArgumentException("Hackathon not assigned to mentor");
+            throw new IllegalArgumentException("Hackathon not assigned to staff member");
 
-        List<SupportRequest> requestsSupport = supportRepository.findAllByMentor(mentorID);
-
-        if (requestsSupport == null || requestsSupport.isEmpty())
-            throw new IllegalArgumentException("No request support found");
-
-        return requestsSupport;
+        return hackathonRepository.findById(hackathonID)
+                .orElseThrow(() -> new IllegalArgumentException("Hackathon not found"));
     }
-
 }

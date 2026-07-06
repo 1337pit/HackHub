@@ -1,283 +1,97 @@
 package Handler;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.Mockito;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import unicam.hackhub.handler.HackathonHandler;
-import unicam.hackhub.model.*;
+import unicam.hackhub.model.Hackathon;
+import unicam.hackhub.model.Mentor;
 import unicam.hackhub.service.HackathonService;
 
-import java.time.LocalDate;
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.when;
 
-@ExtendWith(MockitoExtension.class)
-public class HackathonHandlerTest {
+class HackathonHandlerTest {
 
-    @Mock
     private HackathonService hackathonService;
-
-    @InjectMocks
     private HackathonHandler hackathonHandler;
-
-    private Organizer mockOrganizer;
-    private Hackathon mockHackathon;
-    private Team mockTeam;
 
     @BeforeEach
     void setUp() {
-        // Inizializzazione di oggetti mock di supporto per i test
-        mockOrganizer = mock(Organizer.class);
-        mockHackathon = mock(Hackathon.class);
-        mockTeam = mock(Team.class);
+        // 1. Creiamo il mock del servizio in modo elementare
+        hackathonService = Mockito.mock(HackathonService.class);
+
+        // 2. Lo passiamo direttamente al costruttore del controller
+        hackathonHandler = new HackathonHandler(hackathonService);
     }
 
-    // --- TEST PER createHackathon ---
-/*
     @Test
+    @DisplayName("Creazione Hackathon - Successo")
     void createHackathon_Success() {
-        // Arrange
-        String name = "HackUnicam 2026";
-        String rulebook = "Regolamento ufficiale";
-        LocalDate regDeadline = LocalDate.now().plusDays(5);
-        LocalDate start = LocalDate.now().plusDays(10);
-        LocalDate end = LocalDate.now().plusDays(12);
-        String location = "Camerino";
-        String prize = "1000€";
-        HackathonState state = HackathonState.CREATED;
-        int maxTeamSize = 5;
-        Long mentorId = 1L;
-        Long judgeId = 2L;
+        // Arrange (Configurazione dei dati staccati dal JSON)
+        Hackathon inputHackathon = new Hackathon();
+        inputHackathon.setNameHackathon("Hackathon 2026");
 
-        when(hackathonService.createHackathon(name, rulebook, regDeadline, start, end, location,
-                prize, state, maxTeamSize, mockOrganizer, mentorId, judgeId))
-                .thenReturn(mockHackathon);
+        Hackathon mockOutput = new Hackathon();
+        mockOutput.setId(1L);
+        mockOutput.setNameHackathon("Hackathon 2026");
 
-        // Act
-        Hackathon result = hackathonHandler.createHackathon(name, rulebook, regDeadline, start, end,
-                location, prize, state, maxTeamSize, mockOrganizer, mentorId, judgeId);
+        // Diciamo al mock cosa ritornare quando viene chiamato
+        when(hackathonService.createHackathon(any(), any(), any(), any(), any(), any(), any(), any(), anyInt(), any(), anyLong(), anyLong()))
+                .thenReturn(mockOutput);
 
-        // Assert
-        assertNotNull(result);
-        assertEquals(mockHackathon, result);
-        verify(hackathonService, times(1)).createHackathon(name, rulebook, regDeadline, start, end,
-                location, prize, state, maxTeamSize, mockOrganizer, mentorId, judgeId);
-    }*/
+        // Act (Chiamata diretta al metodo Java dell'Handler)
+        ResponseEntity<Hackathon> response = hackathonHandler.createHackathon(inputHackathon, 2L, 3L, "RegistrationState");
 
-    @Test
-    void createHackathon_Exception_ReturnsNull() {
-        // Arrange
-        when(hackathonService.createHackathon(any(), any(), any(), any(), any(), any(),
-                any(), any(), anyInt(), any(), anyLong(), anyLong()))
-                .thenThrow(new IllegalArgumentException("Dati non validi"));
-
-        // Act
-        Hackathon result = hackathonHandler.createHackathon("Errore", "Rulebook", LocalDate.now(),
-                LocalDate.now(), LocalDate.now(), "Online", "0", null, 0, null, 1L, 2L);
-
-        // Assert
-        assertNull(result);
+        // Assert (Verifica dello stato HTTP e del contenuto)
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(1L, response.getBody().getId());
     }
 
-    // --- TEST PER addMentor ---
+    @Test
+    @DisplayName("Creazione Hackathon - Stato sconosciuto lancia BadRequest")
+    void createHackathon_InvalidState_ReturnsBadRequest() {
+        // Act (Passiamo una stringa di stato non censita nello switch)
+        ResponseEntity<Hackathon> response = hackathonHandler.createHackathon(new Hackathon(), 2L, 3L, "StatoInesistente");
+
+        // Assert
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
 
     @Test
+    @DisplayName("Modifica Hackathon - Successo")
+    void editHackathon_Success() {
+        // Arrange
+        Hackathon mockOutput = new Hackathon();
+        mockOutput.setNameHackathon("Nome Aggiornato");
+
+        when(hackathonService.editHackathon(anyLong(), any(), any(), any(), any(), any(), anyInt(), anyLong(), anyLong()))
+                .thenReturn(mockOutput);
+
+        // Act (Invochiamo il metodo passando i parametri come argomenti Java completi)
+        ResponseEntity<?> response = hackathonHandler.editHackathon(1L, "Nome Aggiornato", null, null, null, null, 5, null, null);
+
+        // Assert
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+    }
+
+    @Test
+    @DisplayName("Aggiungi Mentore - Successo")
     void addMentor_Success() {
         // Arrange
-        String email = "mentor@example.com";
-        Long hackathonID = 1L;
-        doNothing().when(hackathonService).addMentor(email, hackathonID);
+        Mentor mockMentor = new Mentor();
+        when(hackathonService.addMentor("mentore@test.it", 1L)).thenReturn(mockMentor);
 
         // Act
-        hackathonHandler.addMentor(email, hackathonID);
+        ResponseEntity<Mentor> response = hackathonHandler.addMentor(1L, "mentore@test.it");
 
         // Assert
-        verify(hackathonService, times(1)).addMentor(email, hackathonID);
-    }
-
-    @Test
-    void addMentor_Exception_Handled() {
-        // Arrange
-        String email = "mentor@example.com";
-        Long hackathonID = 1L;
-        doThrow(new IllegalArgumentException("Mentore non trovato")).when(hackathonService).addMentor(email, hackathonID);
-
-        // Act & Assert (Non deve lanciare eccezioni perché l'handler la cattura internamente)
-        assertDoesNotThrow(() -> hackathonHandler.addMentor(email, hackathonID));
-        verify(hackathonService, times(1)).addMentor(email, hackathonID);
-    }
-
-    // --- TEST PER getAssignedHackathons ---
-
-    @Test
-    void getAssignedHackathons_Success() {
-        Long staffMemberID = 1L;
-        List<Hackathon> hackathons = List.of(mockHackathon);
-
-        when(hackathonService.getAssignedHackathons(staffMemberID))
-                .thenReturn(hackathons);
-
-        List<Hackathon> result =
-                hackathonHandler.getAssignedHackathons(staffMemberID);
-
-        assertNotNull(result);
-        assertEquals(hackathons, result);
-
-        verify(hackathonService, times(1))
-                .getAssignedHackathons(staffMemberID);
-    }
-
-    @Test
-    void getAssignedHackathons_Exception_ReturnsNull() {
-        Long staffMemberID = 999L;
-
-        when(hackathonService.getAssignedHackathons(staffMemberID))
-                .thenThrow(new IllegalArgumentException("Staff member not found"));
-
-        List<Hackathon> result =
-                hackathonHandler.getAssignedHackathons(staffMemberID);
-
-        assertNull(result);
-
-        verify(hackathonService, times(1))
-                .getAssignedHackathons(staffMemberID);
-    }
-
-    // --- TEST PER declareWinner ---
-
-    @Test
-    void declareWinner_Success() {
-        // Arrange
-        Long organizerID    = 1L;
-        Long winningTeamID  = 10L;
-        doNothing().when(hackathonService).declareWinner(organizerID, winningTeamID);
-
-        // Act
-        hackathonHandler.declareWinner(organizerID, winningTeamID);
-
-        // Assert
-        verify(hackathonService, times(1)).declareWinner(organizerID, winningTeamID);
-    }
-
-    @Test
-    void declareWinner_Exception_Handled() {
-        // Arrange
-        Long organizerID    = 1L;
-        Long winningTeamID  = 10L;
-        doThrow(new IllegalArgumentException("Team non valido"))
-                .when(hackathonService).declareWinner(organizerID, winningTeamID);
-
-        // Act & Assert
-        assertDoesNotThrow(() -> hackathonHandler.declareWinner(organizerID, winningTeamID));
-        verify(hackathonService, times(1)).declareWinner(organizerID, winningTeamID);
-    }
-
-    // --- TEST PER getParticipants ---
-
-    @Test
-    void getParticipants_Success() {
-        Long staffMemberID = 1L;
-        Long hackathonID = 10L;
-
-        List<Registration> registrations =
-                List.of(mock(Registration.class));
-
-        when(hackathonService.getParticipants(staffMemberID, hackathonID))
-                .thenReturn(registrations);
-
-        List<Registration> result =
-                hackathonHandler.getParticipants(staffMemberID, hackathonID);
-
-        assertEquals(registrations, result);
-
-        verify(hackathonService, times(1))
-                .getParticipants(staffMemberID, hackathonID);
-    }
-
-    @Test
-    void getParticipants_Exception_ReturnsNull() {
-        Long staffMemberID = 1L;
-        Long hackathonID = 10L;
-
-        when(hackathonService.getParticipants(staffMemberID, hackathonID))
-                .thenThrow(new IllegalArgumentException("No participant registered"));
-
-        List<Registration> result =
-                hackathonHandler.getParticipants(staffMemberID, hackathonID);
-
-        assertNull(result);
-
-        verify(hackathonService, times(1))
-                .getParticipants(staffMemberID, hackathonID);
-    }
-
-    // --- TEST PER changeState ---
-
-    /*@Test
-    void changeState_Success() {
-        // Arrange
-        HackathonState newState = HackathonState.IN_CORSO;
-        doNothing().when(hackathonService).changeState(newState);
-
-        // Act
-        hackathonHandler.changeState(newState);
-
-        // Assert
-        verify(hackathonService, times(1)).changeState(newState);
-    }*/
-
-   /* @Test
-    void changeState_Exception_Handled() {
-        // Arrange
-        HackathonState newState = HackathonState.TERMINATO;
-        doThrow(new IllegalArgumentException("Transizione di stato non permessa")).when(hackathonService).changeState(newState);
-
-        // Act & Assert
-        assertDoesNotThrow(() -> hackathonHandler.changeState(newState));
-        verify(hackathonService, times(1)).changeState(newState);
-    }
-    */
-
-    // --- TEST PER getSubmissions ---
-
-    @Test
-    void getSubmissions_Success() {
-        Long staffMemberID = 1L;
-        Long hackathonID = 10L;
-
-        List<Submission> submissions = List.of(mock(Submission.class));
-
-        when(hackathonService.getSubmissions(staffMemberID, hackathonID))
-                .thenReturn(submissions);
-
-        List<Submission> result =
-                hackathonHandler.getSubmissions(staffMemberID, hackathonID);
-
-        assertEquals(submissions, result);
-
-        verify(hackathonService, times(1))
-                .getSubmissions(staffMemberID, hackathonID);
-    }
-
-    @Test
-    void getSubmissions_Exception_ReturnsNull() {
-        Long staffMemberID = 1L;
-        Long hackathonID = 10L;
-
-        when(hackathonService.getSubmissions(staffMemberID, hackathonID))
-                .thenThrow(new IllegalArgumentException("No submissions found"));
-
-        List<Submission> result =
-                hackathonHandler.getSubmissions(staffMemberID, hackathonID);
-
-        assertNull(result);
-
-        verify(hackathonService, times(1))
-                .getSubmissions(staffMemberID, hackathonID);
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
     }
 }

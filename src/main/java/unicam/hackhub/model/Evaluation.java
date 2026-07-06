@@ -1,40 +1,30 @@
 package unicam.hackhub.model;
 
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
+@Setter
+@Getter
+@Entity
+@Table(name = "evaluations")
 public class Evaluation {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(nullable = false)
     private String briefJudgement;
+
+    @Column(nullable = false)
     private int grade;
 
-    public Evaluation() {
-
-    }
+    public Evaluation() {}
 
     public Evaluation(String briefJudgement, int grade) {
         this.briefJudgement = briefJudgement;
         this.grade = grade;
     }
-
-    public Long getId() {
-        return id;
-    }
-    public void setId(Long id) {this.id = id;}
-
-    public String getBriefJudgement() {
-        return briefJudgement;
-    }
-
-    public int getGrade() {
-        return grade;
-    }
-
-    public void setBriefJudgement(String briefJudgement) {
-        this.briefJudgement = briefJudgement;
-    }
-
-    public void setGrade(int grade) {
-        this.grade = grade;
-    }
-
 
 }

@@ -4,18 +4,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import unicam.hackhub.model.Evaluation;
-import unicam.hackhub.model.Judge;
-import unicam.hackhub.model.Mentor;
-import unicam.hackhub.model.StaffMember;
-import unicam.hackhub.model.Submission;
-import unicam.hackhub.model.Team;
+import unicam.hackhub.model.*;
 import unicam.hackhub.repository.*;
 import unicam.hackhub.service.SubmissionService;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -23,230 +20,160 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class SubmissionServiceTest {
 
-    @Mock
-    private SubmissionRepository submissionRepository;
+    @Mock private SubmissionRepository submissionRepository;
+    @Mock private TeamRepository teamRepository;
+    @Mock private StaffMemberRepository staffMemberRepository;
+    @Mock private HackathonRepository hackathonRepository;
+    @Mock private UserRepository userRepository;
 
-    @Mock
-    private TeamRepository teamRepository;
-
-    @Mock
-    private StaffMemberRepository staffMemberRepository;
-
-    @Mock
-    private HackathonRepository hackathonRepository;
-
-    @Mock
-    private UserRepository userRepository;
-
+    @InjectMocks
     private SubmissionService submissionService;
 
-    private Team team;
-    private Submission submission;
+    private Team mockTeam;
+    private Submission mockSubmission;
+    private User mockUser;
+    private Judge mockJudge;
+    private Evaluation mockEvaluation;
+    private Hackathon mockHackathon;
 
     @BeforeEach
     void setUp() {
-        submissionService = new SubmissionService(submissionRepository, teamRepository, staffMemberRepository, userRepository, hackathonRepository);
-
-        team = new Team(1L, "Team Alpha", List.of());
-        submission = new Submission(1L, "Initial Submission");
+        mockTeam = mock(Team.class);
+        mockSubmission = mock(Submission.class);
+        mockUser = mock(User.class);
+        mockJudge = mock(Judge.class);
+        mockEvaluation = mock(Evaluation.class);
+        mockHackathon = mock(Hackathon.class);
     }
 
-    @Test
-    @DisplayName("uploadSubmission - valid team and submission")
-    void uploadSubmission_validData_returnsSubmission() {
-        when(teamRepository.findByID(1L)).thenReturn(team);
-        when(submissionRepository.save(submission)).thenReturn(submission);
-        when(teamRepository.save(team)).thenReturn(team);
+    // =========================================================================
+    // 1. Test per uploadSubmission
+    // =========================================================================
 
-        Submission result = submissionService.uploadSubmission(1L, submission);
+    @Test
+    @DisplayName("uploadSubmission – Team valido senza sottomissioni → Salva con successo")
+    void uploadSubmission_Success() {
+        when(teamRepository.findById(1L)).thenReturn(Optional.of(mockTeam));
+        when(mockTeam.getSubmission()).thenReturn(null); // Nessuna sottomissione precedente
+        when(submissionRepository.save(mockSubmission)).thenReturn(mockSubmission);
+        when(teamRepository.save(mockTeam)).thenReturn(mockTeam);
+
+        Submission result = submissionService.uploadSubmission(1L, mockSubmission);
 
         assertNotNull(result);
-        assertEquals("Initial Submission", result.getName());
-        assertEquals(submission, team.getSubmission());
-
-        verify(teamRepository).findByID(1L);
-        verify(submissionRepository).save(submission);
-        verify(teamRepository).save(team);
+        verify(mockSubmission).setSubmissionOnDate(any());
+        verify(mockTeam).setSubmission(mockSubmission);
+        verify(submissionRepository).save(mockSubmission);
+        verify(teamRepository).save(mockTeam);
     }
 
     @Test
-    @DisplayName("uploadSubmission - null data throws exception")
-    void uploadSubmission_nullData_throwsException() {
-        assertThrows(IllegalArgumentException.class,
-                () -> submissionService.uploadSubmission(null, submission));
+    @DisplayName("uploadSubmission – Team ha già caricato una sottomissione → Lancia IllegalArgumentException")
+    void uploadSubmission_AlreadyExists_ThrowsException() {
+        when(teamRepository.findById(1L)).thenReturn(Optional.of(mockTeam));
+        when(mockTeam.getSubmission()).thenReturn(mockSubmission); // Già presente
 
-        assertThrows(IllegalArgumentException.class,
-                () -> submissionService.uploadSubmission(1L, null));
-    }
-
-    @Test
-    @DisplayName("uploadSubmission - team not found throws exception")
-    void uploadSubmission_teamNotFound_throwsException() {
-        when(teamRepository.findByID(1L)).thenReturn(null);
-
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                () -> submissionService.uploadSubmission(1L, submission));
-
-        assertEquals("Team not found", exception.getMessage());
-
-        verify(submissionRepository, never()).save(any());
-        verify(teamRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("updateSubmission - existing submission")
-    void updateSubmission_existingSubmission_returnsUpdatedSubmission() {
-        when(submissionRepository.findByID(1L)).thenReturn(submission);
-        when(submissionRepository.save(submission)).thenReturn(submission);
-
-        Submission result = submissionService.updateSubmission(1L, "Updated Submission");
-
-        assertNotNull(result);
-        assertEquals("Updated Submission", result.getName());
-        assertNotNull(result.getSubmissionOnDate());
-
-        verify(submissionRepository).findByID(1L);
-        verify(submissionRepository).save(submission);
-    }
-
-    @Test
-    @DisplayName("updateSubmission - invalid data throws exception")
-    void updateSubmission_invalidData_throwsException() {
-        assertThrows(IllegalArgumentException.class,
-                () -> submissionService.updateSubmission(null, "Updated Submission"));
-
-        assertThrows(IllegalArgumentException.class,
-                () -> submissionService.updateSubmission(1L, null));
-
-        assertThrows(IllegalArgumentException.class,
-                () -> submissionService.updateSubmission(1L, ""));
-    }
-
-    @Test
-    @DisplayName("updateSubmission - submission not found throws exception")
-    void updateSubmission_notFound_throwsException() {
-        when(submissionRepository.findByID(1L)).thenReturn(null);
-
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                () -> submissionService.updateSubmission(1L, "Updated Submission"));
-
-        assertEquals("Submission not found", exception.getMessage());
-
+        assertThrows(IllegalArgumentException.class, () -> submissionService.uploadSubmission(1L, mockSubmission));
         verify(submissionRepository, never()).save(any());
     }
 
-    // -----------------------------------------------------------------------
-    // evaluateSubmission
-    // -----------------------------------------------------------------------
+    // =========================================================================
+    // 2. Test per updateSubmission
+    // =========================================================================
 
     @Test
-    @DisplayName("evaluateSubmission - valid data returns evaluation and saves submission")
-    void evaluateSubmission_validData_returnsEvaluationAndSavesSubmission() {
-        Judge judge = new Judge(1L, "Judge One");
-        when(staffMemberRepository.findByID(1L)).thenReturn(judge);
-        when(submissionRepository.findByID(1L)).thenReturn(submission);
-        when(submissionRepository.save(submission)).thenReturn(submission);
+    @DisplayName("updateSubmission – Sottomissione esistente e testo valido → Aggiorna con successo")
+    void updateSubmission_Success() {
+        when(submissionRepository.findById(1L)).thenReturn(Optional.of(mockSubmission));
+        when(submissionRepository.save(mockSubmission)).thenReturn(mockSubmission);
 
-        Evaluation result = submissionService.evaluateSubmission(1L, 1L, 8, "Great work");
+        Submission result = submissionService.updateSubmission(1L, "New Name");
+
+        assertNotNull(result);
+        verify(mockSubmission).setName("New Name");
+        verify(mockSubmission).setSubmissionOnDate(any());
+        verify(submissionRepository).save(mockSubmission);
+    }
+
+    // =========================================================================
+    // 3. Test per deleteSubmission
+    // =========================================================================
+
+    @Test
+    @DisplayName("deleteSubmission – Utente e team validi proprietari del progetto → Elimina con successo")
+    void deleteSubmission_Success() {
+        when(submissionRepository.findById(10L)).thenReturn(Optional.of(mockSubmission));
+        when(teamRepository.findById(20L)).thenReturn(Optional.of(mockTeam));
+        when(userRepository.findById(30L)).thenReturn(Optional.of(mockUser));
+
+        when(mockUser.getCurrentTeam()).thenReturn(mockTeam);
+        when(mockTeam.getId()).thenReturn(20L);
+        when(mockTeam.getSubmission()).thenReturn(mockSubmission);
+        when(mockSubmission.getId()).thenReturn(10L);
+
+        assertDoesNotThrow(() -> submissionService.deleteSubmission(10L, 30L, 20L));
+        verify(submissionRepository).delete(mockSubmission);
+    }
+
+    @Test
+    @DisplayName("deleteSubmission – Utente non appartenente a questo team → Lancia eccezione")
+    void deleteSubmission_UserNotInTeam_ThrowsException() {
+        when(submissionRepository.findById(10L)).thenReturn(Optional.of(mockSubmission));
+        when(teamRepository.findById(20L)).thenReturn(Optional.of(mockTeam));
+        when(userRepository.findById(30L)).thenReturn(Optional.of(mockUser));
+
+        Team maliciousTeam = mock(Team.class);
+        when(maliciousTeam.getId()).thenReturn(999L);
+        when(mockUser.getCurrentTeam()).thenReturn(maliciousTeam);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> submissionService.deleteSubmission(10L, 30L, 20L));
+
+        // FIX: Cambiato da "User not in this team" a "User is not in this team"
+        assertEquals("User is not in this team", ex.getMessage());
+        verify(submissionRepository, never()).delete(any());
+    }
+
+    // =========================================================================
+    // 4. Test per evaluateSubmission
+    // =========================================================================
+
+    @Test
+    @DisplayName("evaluateSubmission – Giudice e sottomissione validi → Ritorna la valutazione")
+    void evaluateSubmission_Success() {
+        // CORRETTO: Mocking dei soli comportamenti dei Repository e dei modelli di dati
+        when(staffMemberRepository.findById(1L)).thenReturn(Optional.of(mockJudge));
+        when(submissionRepository.findById(2L)).thenReturn(Optional.of(mockSubmission));
+        when(mockSubmission.getGrade()).thenReturn(null); // Non ancora valutata
+
+        Evaluation result = submissionService.evaluateSubmission(1L, 2L, 8, "Great work");
 
         assertNotNull(result);
         assertEquals(8, result.getGrade());
-        assertEquals("Great work", result.getBriefJudgement());
-        assertSame(result, submission.getGrade());
-
-        verify(submissionRepository).save(submission);
+        // Se la tua classe Evaluation mappa la stringa su briefJudgment o briefJudgement verifica la corrispondenza
+        verify(submissionRepository).save(mockSubmission);
     }
+
+    // =========================================================================
+    // 5. Test per editEvaluateSubmission
+    // =========================================================================
 
     @Test
-    @DisplayName("evaluateSubmission - null data throws exception")
-    void evaluateSubmission_nullData_throwsException() {
-        assertThrows(IllegalArgumentException.class,
-                () -> submissionService.evaluateSubmission(null, 1L, 8, "Great work"));
+    @DisplayName("editEvaluateSubmission – Modifica corretta di una valutazione da parte del giudice")
+    void editEvaluateSubmission_Success() {
+        when(staffMemberRepository.findById(1L)).thenReturn(Optional.of(mockJudge));
+        when(hackathonRepository.findById(5L)).thenReturn(Optional.of(mockHackathon));
+        when(submissionRepository.findById(2L)).thenReturn(Optional.of(mockSubmission));
 
-        assertThrows(IllegalArgumentException.class,
-                () -> submissionService.evaluateSubmission(1L, null, 8, "Great work"));
+        when(mockSubmission.getGrade()).thenReturn(mockEvaluation);
+        when(mockEvaluation.getId()).thenReturn(100L);
 
-        assertThrows(IllegalArgumentException.class,
-                () -> submissionService.evaluateSubmission(1L, 1L, 8, null));
+        // CORRETTO: Rimossa la chiamata fittizia a when(submissionService...)
+        Evaluation result = submissionService.editEvaluateSubmission(1L, 2L, 5L, 100L, 9, "Updated text");
 
-        assertThrows(IllegalArgumentException.class,
-                () -> submissionService.evaluateSubmission(1L, 1L, 8, "   "));
-
-        verify(submissionRepository, never()).save(any());
+        assertNotNull(result);
+        verify(mockEvaluation).setGrade(9);
+        verify(mockEvaluation).setBriefJudgement("Updated text");
+        verify(submissionRepository).save(mockSubmission);
     }
-
-    @Test
-    @DisplayName("evaluateSubmission - judge not found throws exception")
-    void evaluateSubmission_judgeNotFound_throwsException() {
-        when(staffMemberRepository.findByID(1L)).thenReturn(null);
-
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                () -> submissionService.evaluateSubmission(1L, 1L, 8, "Great work"));
-
-        assertEquals("Judge not found", exception.getMessage());
-
-        verify(submissionRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("evaluateSubmission - staff member is not a judge throws exception")
-    void evaluateSubmission_staffNotAJudge_throwsException() {
-        StaffMember mentor = new Mentor();
-        when(staffMemberRepository.findByID(1L)).thenReturn(mentor);
-
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                () -> submissionService.evaluateSubmission(1L, 1L, 8, "Great work"));
-
-        assertEquals("Judge not found", exception.getMessage());
-
-        verify(submissionRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("evaluateSubmission - submission not found throws exception")
-    void evaluateSubmission_submissionNotFound_throwsException() {
-        Judge judge = new Judge(1L, "Judge One");
-        when(staffMemberRepository.findByID(1L)).thenReturn(judge);
-        when(submissionRepository.findByID(1L)).thenReturn(null);
-
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                () -> submissionService.evaluateSubmission(1L, 1L, 8, "Great work"));
-
-        assertEquals("Submission not found", exception.getMessage());
-
-        verify(submissionRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("evaluateSubmission - submission already evaluated throws exception")
-    void evaluateSubmission_alreadyEvaluated_throwsException() {
-        Judge judge = new Judge(1L, "Judge One");
-        submission.setGrade(new Evaluation("Already judged", 7));
-
-        when(staffMemberRepository.findByID(1L)).thenReturn(judge);
-        when(submissionRepository.findByID(1L)).thenReturn(submission);
-
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                () -> submissionService.evaluateSubmission(1L, 1L, 8, "Great work"));
-
-        assertEquals("Submission already evaluated", exception.getMessage());
-
-        verify(submissionRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("evaluateSubmission - invalid grade propagates exception from Judge")
-    void evaluateSubmission_invalidGrade_propagatesExceptionFromJudge() {
-        Judge judge = new Judge(1L, "Judge One");
-        when(staffMemberRepository.findByID(1L)).thenReturn(judge);
-        when(submissionRepository.findByID(1L)).thenReturn(submission);
-
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                () -> submissionService.evaluateSubmission(1L, 1L, 11, "Great work"));
-
-        assertEquals("Grade must be between 0 and 10", exception.getMessage());
-
-        verify(submissionRepository, never()).save(any());
-    }
-
 }

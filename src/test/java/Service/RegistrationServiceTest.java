@@ -1,6 +1,7 @@
 package Service;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -18,24 +19,21 @@ import unicam.hackhub.service.HackathonService;
 import unicam.hackhub.service.RegistrationService;
 import unicam.hackhub.service.UserService;
 
+import java.util.Optional;
+
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class RegistrationServiceTest {
+class RegistrationServiceTest {
 
-    @Mock
-    private RegistrationRepository registrationRepository;
-    @Mock
-    private TeamRepository teamRepository;
-    @Mock
-    private HackathonRepository hackathonRepository;
-    @Mock
-    private UserRepository userRepository;
-    @Mock
-    private UserService userService;
-    @Mock
-    private HackathonService hackathonService;
+    @Mock private RegistrationRepository registrationRepository;
+    @Mock private TeamRepository teamRepository;
+    @Mock private HackathonRepository hackathonRepository;
+    @Mock private UserRepository userRepository;
+    @Mock private UserService userService;
+    @Mock private HackathonService hackathonService;
 
     @InjectMocks
     private RegistrationService registrationService;
@@ -53,97 +51,105 @@ public class RegistrationServiceTest {
         mockRegistration = mock(Registration.class);
     }
 
-    // --- TEST PER registerTeam ---
+    // =========================================================================
+    // 1. Test per registerTeam
+    // =========================================================================
 
     @Test
-    void registerTeam_ShouldReturnRegistration_WhenAllConditionsAreValid() {
-        // Arrange
+    @DisplayName("registerTeam – Condizioni valide → Salva e restituisce la registrazione")
+    void registerTeam_Success() {
         Long hackathonId = 1L;
         Long userId = 2L;
 
-        when(userRepository.findByID(userId)).thenReturn(mockUser);
+        // Stubbing per il recupero dati
+        when(userRepository.findById(userId)).thenReturn(Optional.of(mockUser));
         when(mockUser.hasTeam()).thenReturn(true);
         when(mockUser.getCurrentTeam()).thenReturn(mockTeam);
-        when(hackathonRepository.findByID(hackathonId)).thenReturn(mockHackathon);
-        when(registrationRepository.findByRegistration(mockTeam, mockHackathon)).thenReturn(mockRegistration);
+        when(hackathonRepository.findById(hackathonId)).thenReturn(Optional.of(mockHackathon));
 
-        // Act
+        // Nessuna registrazione precedente trovata (ritorna Optional.empty())
+        when(registrationRepository.findByTeamAndHackathon(mockTeam, mockHackathon)).thenReturn(Optional.empty());
+
+        // Risposta al salvataggio finale
+        when(registrationRepository.save(any(Registration.class))).thenReturn(mockRegistration);
+
         Registration result = registrationService.registerTeam(hackathonId, userId);
 
-        // Assert
         assertNotNull(result);
         assertEquals(mockRegistration, result);
 
-        // Verifica che le validazioni dei servizi esterni vengano effettivamente chiamate
-        verify(userService).checkEligibility(mockUser);
+        // Verifiche delle interazioni ed effetti collaterali richiesti dalla logica di business
         verify(hackathonService).checkHackathonAvailability(mockHackathon);
         verify(hackathonService).checkTeamSize(mockTeam, mockHackathon);
-        verify(hackathonService).checkTeamAlreadyRegistered(mockRegistration);
-        verify(registrationRepository).save(mockRegistration);
+        verify(hackathonService).checkTeamAlreadyRegistered(null);
+        verify(mockTeam).setHackathon(mockHackathon);
+        verify(teamRepository).save(mockTeam);
+        verify(registrationRepository).save(any(Registration.class));
     }
 
     @Test
-    void registerTeam_ShouldThrowIllegalArgumentException_WhenParametersAreNull() {
-        // Act & Assert
+    @DisplayName("registerTeam – Parametri nulli → Lancia IllegalArgumentException")
+    void registerTeam_NullParameters_ThrowsException() {
         assertThrows(IllegalArgumentException.class, () -> registrationService.registerTeam(null, 1L));
         assertThrows(IllegalArgumentException.class, () -> registrationService.registerTeam(1L, null));
     }
 
     @Test
-    void registerTeam_ShouldThrowIllegalArgumentException_WhenUserHasNoTeam() {
-        // Arrange
+    @DisplayName("registerTeam – L'utente non possiede un team → Si interrompe lanciando eccezione")
+    void registerTeam_UserHasNoTeam_ThrowsException() {
         Long hackathonId = 1L;
         Long userId = 2L;
 
-        when(userRepository.findByID(userId)).thenReturn(mockUser);
-        when(mockUser.hasTeam()).thenReturn(false); // L'utente non ha un team
+        when(userRepository.findById(userId)).thenReturn(Optional.of(mockUser));
+        when(mockUser.hasTeam()).thenReturn(false);
 
-        // Act & Assert
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
-            registrationService.registerTeam(hackathonId, userId);
-        });
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+                registrationService.registerTeam(hackathonId, userId)
+        );
 
         assertEquals("User has no team", exception.getMessage());
 
-        // Verifica che il flusso si interrompa prima di cercare l'hackathon o salvare
-        verify(hackathonRepository, never()).findByID(any());
+        // Verifica il corto circuito: non deve cercare l'hackathon né salvare nulla
+        verify(hackathonRepository, never()).findById(any());
         verify(registrationRepository, never()).save(any());
     }
 
-    // --- TEST PER getRegistration ---
+    // =========================================================================
+    // 2. Test per getRegistration
+    // =========================================================================
 
     @Test
-    void getRegistration_ShouldReturnRegistration_WhenTeamIdIsValid() {
-        // Arrange
+    @DisplayName("getRegistration – TeamID valido → Restituisce la registrazione associata")
+    void getRegistration_Success() {
         Long teamId = 10L;
-        when(registrationRepository.findByTeamID(teamId)).thenReturn(mockRegistration);
+        when(teamRepository.findById(teamId)).thenReturn(Optional.of(mockTeam));
+        when(registrationRepository.findByTeam(mockTeam)).thenReturn(Optional.of(mockRegistration));
 
-        // Act
         Registration result = registrationService.getRegistration(teamId);
 
-        // Assert
         assertNotNull(result);
         assertEquals(mockRegistration, result);
-        verify(registrationRepository).findByTeamID(teamId);
+        verify(teamRepository).findById(teamId);
+        verify(registrationRepository).findByTeam(mockTeam);
     }
 
     @Test
-    void getRegistration_ShouldThrowIllegalArgumentException_WhenTeamIdIsNull() {
-        // Act & Assert
+    @DisplayName("getRegistration – TeamID nullo → Lancia IllegalArgumentException")
+    void getRegistration_NullTeamId_ThrowsException() {
         assertThrows(IllegalArgumentException.class, () -> registrationService.getRegistration(null));
     }
 
-    // --- TEST PER getTeamByUser ---
+    // =========================================================================
+    // 3. Test per getTeamByUser
+    // =========================================================================
 
     @Test
-    void getTeamByUser_ShouldReturnTeam_WhenUserIsValid() {
-        // Arrange
-        when(teamRepository.findByUser(mockUser)).thenReturn(mockTeam);
+    @DisplayName("getTeamByUser – Utente valido → Estrae il team corretto dal repository")
+    void getTeamByUser_Success() {
+        when(teamRepository.findByUser(mockUser)).thenReturn(Optional.of(mockTeam));
 
-        // Act
         Team result = registrationService.getTeamByUser(mockUser);
 
-        // Assert
         assertNotNull(result);
         assertEquals(mockTeam, result);
         verify(teamRepository).findByUser(mockUser);

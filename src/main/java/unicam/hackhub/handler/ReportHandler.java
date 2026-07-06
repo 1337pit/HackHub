@@ -1,10 +1,16 @@
 package unicam.hackhub.handler;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import unicam.hackhub.dto.ReportRequest;
 import unicam.hackhub.model.Report;
 import unicam.hackhub.service.ReportService;
 
 import java.util.List;
 
+@RestController
+@RequestMapping("/api/handler/report")
 public class ReportHandler {
 
     private final ReportService reportService;
@@ -14,54 +20,58 @@ public class ReportHandler {
     }
 
     /**
-     * Gestisce la richiesta di visualizzazione segnalazioni.
-     * Usato nel caso d'uso "Visualizza Segnalazioni" dell'Organizzatore.
+     * Visualizza tutte le segnalazioni di un determinato Hackathon.
      */
-    public List<Report> getReports(Long hackathonID) {
-        try {
-            return reportService.getReports(hackathonID);
-        } catch (IllegalArgumentException e) {
-            System.err.println("getReports error: " + e.getMessage());
-            return null;
-        }
+    @GetMapping("/hackathon/{hackathonId}")
+    public ResponseEntity<List<Report>> getReports(@PathVariable Long hackathonId) {
+        List<Report> reports = reportService.getReports(hackathonId);
+        // Se la lista è vuota restituisce comunque un 200 OK con array vuato [], che è corretto in REST
+        return ResponseEntity.ok(reports);
     }
 
     /**
-     * Gestisce la richiesta di creazione segnalazione.
-     * Usato nel caso d'uso "Segnala Team" del Mentore.
+     * Crea una nuova segnalazione per un team.
      */
-    public Report createReport(Long mentorID, Long teamID,
-                                        Long hackathonID, String description) {
+    @PostMapping
+    public ResponseEntity<Report> createReport(@RequestBody ReportRequest request) {
         try {
-            return reportService.createReport(mentorID, teamID, hackathonID, description);
+            Report newReport = reportService.createReport(
+                    request.mentorId(),
+                    request.teamId(),
+                    request.hackathonId(),
+                    request.description()
+            );
+            return new ResponseEntity<>(newReport, HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {
-            System.err.println("createReport error: " + e.getMessage());
-            return null;
+            return ResponseEntity.badRequest().build();
         }
     }
 
     /**
      * Gestisce la richiesta di modifica segnalazione.
-     * Usato nel caso d'uso "Modifica Segnalazione" del Mentore.
      */
-    public Report updateReport(Long reportID, Long mentorID, String description) {
+    @PutMapping("/{reportId}")
+    public ResponseEntity<Report> updateReport(@PathVariable Long reportId,
+                                               @RequestParam Long mentorId,
+                                               @RequestParam String description) {
         try {
-            return reportService.updateReport(reportID, mentorID, description);
+            return ResponseEntity.ok(reportService.updateReport(reportId, mentorId, description));
         } catch (IllegalArgumentException e) {
-            System.err.println("updateReport error: " + e.getMessage());
-            return null;
+            return ResponseEntity.badRequest().build();
         }
     }
 
     /**
      * Gestisce la richiesta di eliminazione segnalazione.
-     * Usato nel caso d'uso "Elimina Segnalazione" del Mentore.
      */
-    public void deleteReport(Long reportID, Long mentorID) {
+    @DeleteMapping("/{reportId}")
+    public ResponseEntity<Void> deleteReport(@PathVariable Long reportId,
+                                             @RequestParam Long mentorId) {
         try {
-            reportService.deleteReport(reportID, mentorID);
+            reportService.deleteReport(reportId, mentorId);
+            return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException e) {
-            System.err.println("deleteReport error: " + e.getMessage());
+            return ResponseEntity.notFound().build();
         }
     }
 

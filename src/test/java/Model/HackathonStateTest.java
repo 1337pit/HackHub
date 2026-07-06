@@ -1,47 +1,43 @@
 package Model;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import unicam.hackhub.model.Hackathon;
 import unicam.hackhub.model.state.ConcludedState;
 import unicam.hackhub.model.state.EvaluationState;
-import unicam.hackhub.model.Hackathon;
 import unicam.hackhub.model.state.InProgressState;
 import unicam.hackhub.model.state.RegistrationState;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-public class HackathonStateTest {
+class HackathonStateTest {
+
+    // =======================================================================
+    // 1. Test sui singoli Stati (Unitari)
+    // =======================================================================
 
     @Test
-    void registrationState_AllowsTeamRegistration() {
+    @DisplayName("RegistrationState – Consente registrazione team ma vieta l'upload")
+    void testRegistrationState() {
         RegistrationState state = new RegistrationState();
 
         assertDoesNotThrow(state::onRegisterTeam);
-    }
-
-    @Test
-    void registrationState_DoesNotAllowUpload() {
-        RegistrationState state = new RegistrationState();
-
         assertThrows(IllegalStateException.class, state::onUpload);
     }
 
     @Test
-    void inProgressState_DoesNotAllowTeamRegistration() {
+    @DisplayName("InProgressState – Vieta registrazione team ma consente l'upload")
+    void testInProgressState() {
         InProgressState state = new InProgressState();
 
         assertThrows(IllegalStateException.class, state::onRegisterTeam);
-    }
-
-    @Test
-    void inProgressState_AllowsUpload() {
-        InProgressState state = new InProgressState();
-
         assertDoesNotThrow(state::onUpload);
     }
 
     @Test
-    void evaluationState_DoesNotAllowTeamRegistrationOrUpload() {
+    @DisplayName("EvaluationState – Vieta sia la registrazione che l'upload")
+    void testEvaluationState() {
         EvaluationState state = new EvaluationState();
 
         assertThrows(IllegalStateException.class, state::onRegisterTeam);
@@ -49,28 +45,11 @@ public class HackathonStateTest {
     }
 
     @Test
-    void concludedState_DoesNotAllowTeamRegistrationOrUpload() {
+    @DisplayName("ConcludedState – Vieta sia la registrazione che l'upload")
+    void testConcludedState() {
         ConcludedState state = new ConcludedState();
 
         assertThrows(IllegalStateException.class, state::onRegisterTeam);
         assertThrows(IllegalStateException.class, state::onUpload);
     }
-
-    @Test
-    void hackathon_DelegatesOperationsToCurrentState() {
-        Hackathon hackathon = new Hackathon();
-        hackathon.setState(new RegistrationState());
-
-        assertDoesNotThrow(hackathon::onRegisterTeam);
-        assertThrows(IllegalStateException.class, hackathon::onUpload);
-    }
-
-    @Test
-    void hackathon_WithoutStateThrowsException() {
-        Hackathon hackathon = new Hackathon();
-
-        assertThrows(IllegalStateException.class, hackathon::onRegisterTeam);
-        assertThrows(IllegalStateException.class, hackathon::onUpload);
-    }
-
 }

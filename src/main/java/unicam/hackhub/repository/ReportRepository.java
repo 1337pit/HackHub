@@ -1,19 +1,15 @@
 package unicam.hackhub.repository;
 
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+import unicam.hackhub.model.Hackathon;
+import unicam.hackhub.model.Mentor;
 import unicam.hackhub.model.Report;
-import unicam.hackhub.model.Submission;
+import unicam.hackhub.model.Team;
 
 import java.util.List;
 
-public interface ReportRepository {
-
-    Report findByID(Long reportID);
-
-    List<Report> findAllReportByHackathon(Long hackathonID);
-
-    Report save(Report entity);
-
-    void saveAll(List<Report> entities);
-
-    void delete(Report report);
+@Repository
+public interface ReportRepository extends JpaRepository<Report, Long> {
+    List<Report> findByHackathon(Hackathon hackathon);
 }

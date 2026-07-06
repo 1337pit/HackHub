@@ -1,15 +1,32 @@
 package unicam.hackhub.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
+@Setter
+@Getter
+@Entity
+@Table(name = "users")
 public class User {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(nullable = false)
     private String name;
-    private Team currentTeam;
+
+    @Column(nullable = false, unique = true)
     private String email;
 
-    public User() {
+    @ManyToOne
+    @JoinColumn(name = "team_id")
+    @JsonIgnore
+    private Team currentTeam;
 
-    }
+    public User() {}
 
     public User(Long id, String name, String email) {
         this.id = id;
@@ -17,45 +34,6 @@ public class User {
         this.email = email;
     }
 
-    public Team createTeam() {
-        Team team = new Team();
-        this.currentTeam = team;
-        return team;
-    }
+    public boolean hasTeam() { return currentTeam != null; }
 
-    public boolean hasTeam() {
-        return currentTeam != null;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public Team getCurrentTeam() {
-        return currentTeam;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public void setCurrentTeam(Team currentTeam) {
-        this.currentTeam = currentTeam;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
 }

@@ -1,62 +1,55 @@
 package unicam.hackhub.service;
 
+import org.springframework.stereotype.Service;
 import unicam.hackhub.model.Mentor;
 import unicam.hackhub.model.SupportRequest;
-import unicam.hackhub.model.StaffMember;
 import unicam.hackhub.model.Team;
-import unicam.hackhub.repository.SupportRepository;
+import unicam.hackhub.repository.HackathonRepository;
 import unicam.hackhub.repository.StaffMemberRepository;
+import unicam.hackhub.repository.SupportRepository;
 import unicam.hackhub.repository.TeamRepository;
+import unicam.hackhub.repository.UserRepository;
 
 import java.time.LocalDate;
 import java.util.List;
 
+@Service
 public class CalendarService {
 
     private final StaffMemberRepository staffMemberRepository;
-    private final SupportRepository requestSupportRepository;
+    private final SupportRepository supportRepository;
     private final TeamRepository teamRepository;
-    private final GoogleCalendarAPI googleCalendarAPI;
+    private final HackathonRepository hackathonRepository;
+    private final UserRepository userRepository;
+    private final CalendarAPI fakeCalendarService; // Sostituito qui
 
     public CalendarService(StaffMemberRepository staffMemberRepository,
-                           SupportRepository requestSupportRepository,
+                           SupportRepository supportRepository,
                            TeamRepository teamRepository,
-                           GoogleCalendarAPI googleCalendarAPI) {
+                           HackathonRepository hackathonRepository,
+                           UserRepository userRepository,
+                           CalendarAPI fakeCalendarService) {
         this.staffMemberRepository = staffMemberRepository;
-        this.requestSupportRepository = requestSupportRepository;
+        this.supportRepository = supportRepository;
         this.teamRepository = teamRepository;
-        this.googleCalendarAPI = googleCalendarAPI;
+        this.hackathonRepository = hackathonRepository;
+        this.userRepository = userRepository;
+        this.fakeCalendarService = fakeCalendarService;
     }
 
-    /**
-     * Restituisce le date libere del mentor nel range indicato.
-     * Le date vengono lette direttamente dal Google Calendar del mentor.
-     */
     public List<LocalDate> getAvailableDates(Long mentorID, LocalDate from, LocalDate to) {
         if (mentorID == null || from == null || to == null)
             throw new IllegalArgumentException("Invalid data");
         if (!to.isAfter(from))
             throw new IllegalArgumentException("End date must be after start date");
 
-        StaffMember staff = staffMemberRepository.findByID(mentorID);
-        if (!(staff instanceof Mentor))
-            throw new IllegalArgumentException("Mentor not found");
+        staffMemberRepository.findById(mentorID)
+                .filter(s -> s instanceof Mentor)
+                .orElseThrow(() -> new IllegalArgumentException("Mentor not found"));
 
-        try {
-            return googleCalendarAPI.getFreeDates(from, to);
-        } catch (Exception e) {
-            throw new IllegalStateException("Google Calendar non disponibile: " + e.getMessage());
-        }
+        return fakeCalendarService.getFreeDates(from, to);
     }
 
-    /**
-     * Prenota una data per una call di supporto.
-     * 1. Verifica dati validi
-     * 2. Recupera mentor e team
-     * 3. Verifica che la data sia libera
-     * 4. Crea l'evento su Google Calendar
-     * 5. Salva la SupportRequest con l'ID dell'evento Google
-     */
     public SupportRequest bookDate(Long mentorID, Long teamID, Long hackathonID,
                                    Long userID, LocalDate date) {
         if (mentorID == null || teamID == null || hackathonID == null
@@ -65,63 +58,45 @@ public class CalendarService {
         if (date.isBefore(LocalDate.now()))
             throw new IllegalArgumentException("Cannot book a past date");
 
-        StaffMember staff = staffMemberRepository.findByID(mentorID);
-        if (!(staff instanceof Mentor))
-            throw new IllegalArgumentException("Mentor not found");
-        Mentor mentor = (Mentor) staff;
+        Mentor mentor = (Mentor) staffMemberRepository.findById(mentorID)
+                .filter(s -> s instanceof Mentor)
+                .orElseThrow(() -> new IllegalArgumentException("Mentor not found"));
 
-        Team team = teamRepository.findByID(teamID);
-        if (team == null)
-            throw new IllegalArgumentException("Team not found");
+        Team team = teamRepository.findById(teamID)
+                .orElseThrow(() -> new IllegalArgumentException("Team not found"));
 
-        // Verifica che la data sia libera sul calendario Google
-        List<LocalDate> freeDates;
-        try {
-            freeDates = googleCalendarAPI.getFreeDates(date, date);
-        } catch (Exception e) {
-            throw new IllegalStateException("Google Calendar non disponibile: " + e.getMessage());
-        }
+        var hackathon = hackathonRepository.findById(hackathonID)
+                .orElseThrow(() -> new IllegalArgumentException("Hackathon not found"));
+
+        var user = userRepository.findById(userID)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        List<LocalDate> freeDates = fakeCalendarService.getFreeDates(date, date);
         if (freeDates.isEmpty())
-            throw new IllegalArgumentException("Data non disponibile");
+            throw new IllegalArgumentException("Date not available");
 
-        // Crea l'evento su Google Calendar
-        String googleEventID;
-        try {
-            googleEventID = googleCalendarAPI.createEvent(
-                    date, team.getTeamName(), mentor.getName());
-        } catch (Exception e) {
-            throw new IllegalStateException("Impossibile creare l'evento: " + e.getMessage());
-        }
+        // Genera l'ID fittizio e occupa lo slot di tempo
+        String fakeEventID = fakeCalendarService.createEvent(date);
 
-        // Salva la prenotazione
         SupportRequest request = new SupportRequest(
-                null, date, hackathonID, userID, teamID, mentorID);
-        request.setGoogleEventID(googleEventID);
+                null, date, hackathon, user, team, mentor);
+        request.setGoogleEventID(fakeEventID); // Manteniamo la property o la rinominiamo in eventID
 
-        return requestSupportRepository.save(request);
+        return supportRepository.save(request);
     }
 
-    /**
-     * Cancella una prenotazione esistente e rimuove l'evento da Google Calendar.
-     */
     public void cancelBooking(Long requestID) {
         if (requestID == null)
             throw new IllegalArgumentException("Request ID cannot be null");
 
-        SupportRequest request = requestSupportRepository.findByID(requestID);
-        if (request == null)
-            throw new IllegalArgumentException("Booking not found");
+        SupportRequest request = supportRepository.findById(requestID)
+                .orElseThrow(() -> new IllegalArgumentException("Booking not found"));
 
-        // Rimuove l'evento da Google Calendar
         if (request.getGoogleEventID() != null) {
-            try {
-                googleCalendarAPI.deleteEvent(request.getGoogleEventID());
-            } catch (Exception e) {
-                System.err.println("Impossibile rimuovere l'evento Google: " + e.getMessage());
-                // Non blocca la cancellazione locale
-            }
+            // Rilascia lo slot temporale nel calendario fittizio
+            fakeCalendarService.deleteEvent(request.getGoogleEventID(), request.getRequestedDate());
         }
 
-        requestSupportRepository.delete(request);
+        supportRepository.delete(request);
     }
 }

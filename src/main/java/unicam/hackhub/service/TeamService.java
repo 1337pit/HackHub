@@ -1,5 +1,6 @@
 package unicam.hackhub.service;
 
+import org.springframework.stereotype.Service;
 import unicam.hackhub.model.*;
 import unicam.hackhub.repository.*;
 
@@ -7,6 +8,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+@Service
 public class TeamService {
 
     private final UserRepository userRepository;
@@ -17,8 +19,6 @@ public class TeamService {
     private final InviteService inviteService;
     private final UserService userService;
     private final CalendarService calendarService;
-
-    private static long idCounter = 1;
 
     public TeamService(UserRepository userRepository,
                        TeamRepository teamRepository,
@@ -39,7 +39,7 @@ public class TeamService {
     }
 
     /**
-     * Crea un team seguendo il flusso del sequence diagram:
+     * Crea un team.
      * 1. Recupera e valida l'utente leader
      * 2. Verifica che il nome non sia già usato
      * 3. Crea e salva il team
@@ -47,47 +47,33 @@ public class TeamService {
      * 5. Invia inviti agli altri utenti
      */
     public Team createTeam(Long userID, String name, List<User> teamUserIDs) {
-        // 1. Validazione del nome del team (Risolve il secondo fallimento)
-        if (name == null || name.trim().isEmpty()) {
+        if (name == null || name.trim().isEmpty())
             throw new IllegalArgumentException("Team name cannot be empty or blank");
-        }
 
-        // 2. Recupera utente
-        User leader = userRepository.findByID(userID);
+        User leader = userRepository.findById(userID)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
         userService.checkEligibility(leader);
 
-        // 3. Check eligibilità
         if (leader.hasTeam())
             throw new IllegalArgumentException("User already in a team");
 
-        // 4. Check nome team duplicato
-        if (teamRepository.findByName(name) != null)
+        teamRepository.findByTeamName(name).ifPresent(t -> {
             throw new IllegalArgumentException("Team name is already used");
+        });
 
-        // 5. Crea il team con il leader come primo membro
         List<User> members = new ArrayList<>();
         members.add(leader);
-        Team team = new Team(idCounter++, name, members);
-
-        // 6. Salva il team
+        Team team = new Team(null, name, members);
         teamRepository.save(team);
 
-        // 7. Aggiorna l'utente leader
         leader.setCurrentTeam(team);
         userRepository.save(leader);
 
-        // 8. Invia inviti agli altri utenti
         if (teamUserIDs != null) {
             for (User u : teamUserIDs) {
-                // Salta il leader se è presente nella lista (Risolve il primo fallimento)
-                if (u != null && u.getId().equals(userID)) {
-                    continue;
-                }
-
-                User invitedUser = userRepository.findByID(u.getId());
-                if (invitedUser != null) {
-                    inviteService.createInvite(team.getId(), invitedUser);
-                }
+                if (u != null && u.getId().equals(userID)) continue;
+                userRepository.findById(u.getId()).ifPresent(invitedUser ->
+                        inviteService.createInvite(team.getId(), invitedUser));
             }
         }
 
@@ -95,74 +81,26 @@ public class TeamService {
     }
 
     /**
-     * Elimina un team seguendo il flusso del sequence diagram:
+     * Elimina un team.
      * 1. Verifica che i dati siano corretti
-     * 2. Prende il team e il membro del team
-     * 3. Verifica che il membro del team sia presente nel team che vuole eliminare
-     * 4. Elimina il team
+     * 2. Verifica che l'utente faccia parte del team
+     * 3. Elimina il team
      */
-    public void deleteTeam(Long teamID, Long userID) {
-
-        // 1. Verifica che i dati siano corretti
-        if(teamID == null || userID == null)
+    public void deleteTeam(Long userID, Long teamID) {
+        if (teamID == null || userID == null)
             throw new IllegalArgumentException("teamID and userID cannot be null");
 
-        // 2. Prende il team
-        Team team = teamRepository.findByID(teamID);
-        if (team == null) {
-            throw new IllegalArgumentException("Team does not exist");
-        }
+        Team team = teamRepository.findById(teamID)
+                .orElseThrow(() -> new IllegalArgumentException("Team does not exist"));
 
-        // 3. Prende il membro del team
-        User user = userRepository.findByID(userID);
-        if (user == null) {
-            throw new IllegalArgumentException("User does not exist");
-        }
+        User user = userRepository.findById(userID)
+                .orElseThrow(() -> new IllegalArgumentException("User does not exist"));
 
-        // 4. Verifica che il membro del team sia presente nel team che vuole eliminare
         Team teamUser = user.getCurrentTeam();
-        if (teamUser == null) {
+        if (teamUser == null)
             throw new IllegalArgumentException("User is not in a team");
-        }
-        if (!teamUser.getId().equals(teamID)) {
+        if (!teamUser.getId().equals(teamID))
             throw new IllegalArgumentException("User is not in this team");
-        }
-
-        // 5. Elimina il team
-        teamRepository.delete(team);
-
-        // 6. Visualizza notifica di successo
-        System.out.println("Team has been deleted");
-
-    }
-
-    /**
-     * Bandisce un team tramite il suo ID.
-     *
-     * @param teamID ID del team da bandire
-     */
-    public void banTeam(Long teamID) {
-        if (teamID == null) {
-            throw new IllegalArgumentException("Team ID cannot be null");
-        }
-
-        Team team = teamRepository.findByID(teamID);
-
-        if (team == null) {
-            throw new IllegalArgumentException("Team does not exist");
-        }
-
-        banTeam(team);
-    }
-
-    /**
-     * Rimuove un team (usato da Organizer.banTeam).
-     */
-    public void banTeam(Team team) {
-        if (team == null)
-            throw new IllegalArgumentException("Team cannot be null");
-
-        // Rimuove il team da tutti i membri
         if (team.getMembers() != null) {
             for (User member : team.getMembers()) {
                 member.setCurrentTeam(null);
@@ -170,110 +108,98 @@ public class TeamService {
             }
         }
 
-        // Salva il team aggiornato (senza membri)
+        teamRepository.delete(team);
+    }
+
+    /**
+     * Bandisce un team tramite il suo ID.
+     */
+    public void banTeam(Long teamID) {
+        if (teamID == null)
+            throw new IllegalArgumentException("Team ID cannot be null");
+
+        Team team = teamRepository.findById(teamID)
+                .orElseThrow(() -> new IllegalArgumentException("Team does not exist"));
+
+        banTeam(team);
+    }
+
+    public void banTeam(Team team) {
+        if (team == null)
+            throw new IllegalArgumentException("Team cannot be null");
+
+        if (team.getMembers() != null) {
+            for (User member : team.getMembers()) {
+                member.setCurrentTeam(null);
+                userRepository.save(member);
+            }
+        }
+
         team.setMembers(new ArrayList<>());
         teamRepository.save(team);
     }
 
     /**
-     * Segnala un team seguendo il flusso del sequence diagram:
-     * 1. Verifica che i dati siano validi
-     * 2. Prende il mentore e il team da segnalare
-     * 3. Verifica che il mentore sia stato assegnato al team da segnalare
-     * 4. Crea e salva la sengnalazione
+     * Segnala un team.
      */
-    public Report reportTeam(Long mentorID, Long teamID, String descriprion) {
+    public Report reportTeam(Long mentorID, Long teamID, String description) {
 
         // 1. Verifica che i dati siano validi
-        if (mentorID == null || teamID == null || descriprion == null) {
-            throw new IllegalArgumentException("Data incorrect");
-        }
+        if (mentorID == null || teamID == null
+                || description == null || description.trim().isEmpty())
+            throw new IllegalArgumentException("Invalid data");
 
         // 2. Prende il mentore
-        Mentor mentor = staffMemberRepository.getMentor(mentorID);
-        if (mentor == null) {
-            throw new IllegalArgumentException("Mentor does not exist");
-        }
+        Mentor mentor = (Mentor) staffMemberRepository.findById(mentorID)
+                .filter(s -> s instanceof Mentor)
+                .orElseThrow(() -> new IllegalArgumentException("Mentor not found"));
 
         // 3. Prende il team da segnalare
-        Team team = teamRepository.findByID(teamID);
-        if (team == null) {
-            throw new IllegalArgumentException("Team does not exist");
-        }
+        Team team = teamRepository.findById(teamID)
+                .orElseThrow(() -> new IllegalArgumentException("Team not found"));
 
-        // 4. Prende l'hackathon che contiene il team da sengalare
+        // 4. Prende l'hackathon che contiene il team da segnalare
         Hackathon hackathon = team.getHackathon();
+        if (hackathon == null)
+            throw new IllegalArgumentException("Team is not registered to any hackathon");
 
-        // 5. Verifica che il mentore sia stato assegnato al team da segnalare
-        List<Mentor> mentorList = hackathon.getListMentors();
-        if (mentorList.isEmpty()) {
-            throw new IllegalArgumentException("Mentor from hackathon does not exist");
-        }
-        Report report = null;
-        for (Mentor mentorHackathon : mentorList) {
-            if (mentorHackathon.getId().equals(mentorID)) {
-                // 6. Crea e salva la sengnalazione
-                report = new Report(null, descriprion, team, mentor, hackathon);
-                reportRepository.save(report);
-                System.out.println("Report has been created and saved");
-            }
-        }
+        // 5. Verifica che il mentore sia assegnato all'hackathon del team
+        boolean mentorAssigned = hackathon.getListMentors().stream()
+                .anyMatch(m -> m.getId().equals(mentorID));
+        if (!mentorAssigned)
+            throw new IllegalArgumentException("Mentor is not assigned to this hackathon");
 
-        if (report == null) {
-            throw new IllegalArgumentException("Mentor from hackathon does not exist");
-        }
-
-        return report;
-
+        // 6. Crea e salva la segnalazione
+        Report report = new Report(null, description, team, mentor, hackathon);
+        return reportRepository.save(report);
     }
 
     /**
      * Modifica il nome di un team.
-     *
-     * @param userID  ID dell'utente che richiede la modifica
-     * @param teamID  ID del team
-     * @param newName nuovo nome del team
-     * @return team modificato
      */
     public Team editTeamInfo(Long userID, Long teamID, String newName) {
-        if (userID == null
-                || teamID == null
-                || newName == null
-                || newName.isBlank()) {
+        if (userID == null || teamID == null || newName == null || newName.isBlank())
             throw new IllegalArgumentException("Invalid team data");
-        }
 
-        User user = userRepository.findByID(userID);
-        Team team = teamRepository.findByID(teamID);
-
-        if (user == null || team == null) {
-            throw new IllegalArgumentException("Invalid team data");
-        }
+        User user = userRepository.findById(userID)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid team data"));
+        Team team = teamRepository.findById(teamID)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid team data"));
 
         Team currentTeam = user.getCurrentTeam();
-
-        if (currentTeam == null
-                || !teamID.equals(currentTeam.getId())) {
+        if (currentTeam == null || !teamID.equals(currentTeam.getId()))
             throw new IllegalArgumentException("User is not in this team");
-        }
 
-        Team existingTeam = teamRepository.findByName(newName);
-
-        if (existingTeam != null
-                && !teamID.equals(existingTeam.getId())) {
-            throw new IllegalArgumentException("Team name already used");
-        }
+        teamRepository.findByTeamName(newName)
+                .filter(t -> !t.getId().equals(teamID))
+                .ifPresent(t -> { throw new IllegalArgumentException("Team name already used"); });
 
         team.setTeamName(newName);
-
         return teamRepository.save(team);
     }
 
     /**
-     * Crea una richiesta di supporto seguendo il flusso del sequence diagram:
-     * 1. Verifica che i dati siano corretti
-     * 2. Delega a CalendarService la verifica disponibilità e la prenotazione
-     *    su Google Calendar
+     * Crea una richiesta di supporto delegando a CalendarService.
      */
     public SupportRequest requiresAssistance(Long hackathonID, Long userID,
                                              Long teamID, Long mentorID,
@@ -286,11 +212,10 @@ public class TeamService {
     }
 
     public Team getTeamByUser(User user) {
-        return teamRepository.findByUser(user);
+        return teamRepository.findByUser(user).orElse(null);
     }
 
     public Team getTeamByID(Long teamID) {
-        return teamRepository.findByID(teamID);
+        return teamRepository.findById(teamID).orElse(null);
     }
-
 }

@@ -1,81 +1,26 @@
 package unicam.hackhub.model;
 
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 import unicam.hackhub.model.observer.HackathonObserver;
 import unicam.hackhub.model.state.EvaluationState;
 
-public class Judge implements StaffMember, HackathonObserver {
-
-    private Long id;
-    private String name;
-    private String email;
-    private Hackathon hackathon;
+@Setter
+@Getter
+@Entity
+@Table(name = "judges")
+public class Judge extends StaffMember implements HackathonObserver {
 
     public Judge() {}
 
     public Judge(Long id, String name) {
-        this.id = id;
-        this.name = name;
+        super(id, name);
     }
 
-    /**
-     * Notifica il Giudice del cambio di stato dell'Hackathon.
-     * Il Giudice è interessato alla transizione a ValuationState.
-     */
     @Override
     public void update(HackathonState newState) {
-        if (newState instanceof EvaluationState) {
-            System.out.println("Judge [" + name + "] notificato: Ora è possibile iniziare a valutare le sottomissioni.");
-        }
+        if (newState instanceof EvaluationState)
+            System.out.println("Judge [" + name + "] notified: valuation phase started.");
     }
-
-    /**
-     * Valuta una sottomissione con un voto e un giudizio.
-     * Crea un oggetto Evaluation e lo associa alla Submission.
-     */
-    public Evaluation evaluateSubmission(Submission submission, int grade, String briefJudgment) {
-        if (submission == null)
-            throw new IllegalArgumentException("Submission cannot be null");
-        if (grade < 0 || grade > 10)
-            throw new IllegalArgumentException("Grade must be between 0 and 10");
-        if (briefJudgment == null || briefJudgment.trim().isEmpty())
-            throw new IllegalArgumentException("Brief judgment cannot be empty");
-
-        Evaluation evaluation = new Evaluation(briefJudgment, grade);
-        submission.setGrade(evaluation);
-        return evaluation;
-    }
-
-    /**
-     * Modifica la valutazione di una sottomissione con un voto e un giudizio.
-     * Modifica un oggetto Evaluation e lo associa alla Submission.
-     */
-    public void editEvaluateSubmission(Submission submission, Evaluation evaluation,
-                                             int grade, String briefJudgment) {
-        if (submission == null)
-            throw new IllegalArgumentException("Submission cannot be null");
-        if (evaluation == null)
-            throw new IllegalArgumentException("Evaluation cannot be null");
-        if (grade < 0 || grade > 10)
-            throw new IllegalArgumentException("Grade must be between 0 and 10");
-        if (briefJudgment == null || briefJudgment.trim().isEmpty())
-            throw new IllegalArgumentException("Brief judgment cannot be empty");
-
-        if (evaluation.getGrade() == grade && evaluation.getBriefJudgement().equals(briefJudgment)) {
-            throw new IllegalArgumentException("No edited briefJudgment and/or grade");
-        }
-
-        evaluation.setGrade(grade);
-        evaluation.setBriefJudgement(briefJudgment);
-        submission.setGrade(evaluation);
-    }
-
-    public Long getId() { return id; }
-    public String getName() { return name; }
-    public String getEmail() { return email; }
-    public Hackathon getHackathon() { return hackathon; }
-
-    public void setId(Long id) { this.id = id; }
-    public void setName(String name) { this.name = name; }
-    public void setEmail(String email) { this.email = email; }
-    public void setHackathon(Hackathon hackathon) { this.hackathon = hackathon; }
 }

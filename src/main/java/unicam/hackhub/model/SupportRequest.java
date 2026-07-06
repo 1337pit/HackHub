@@ -1,44 +1,52 @@
 package unicam.hackhub.model;
 
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.LocalDate;
 
+@Setter
+@Getter
+@Entity
+@Table(name = "support_requests")
 public class SupportRequest {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private LocalDate requestedDate;
-    private Long hackathonID;
-    private Long userID;
-    private Long teamID;
-    private Long mentorID;
-    private String googleEventID; // ID dell'evento creato su Google Calendar
 
-    public SupportRequest(Long id, LocalDate requestedDate, Long hackathonID,
-                          Long userID, Long teamID, Long mentorID) {
+    @Column(nullable = false)
+    private LocalDate requestedDate;
+
+    @ManyToOne
+    @JoinColumn(name = "hackathon_id", nullable = false)
+    private Hackathon hackathon;
+
+    @ManyToOne
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
+    @ManyToOne
+    @JoinColumn(name = "team_id", nullable = false)
+    private Team team;
+
+    @ManyToOne
+    @JoinColumn(name = "mentor_id", nullable = false)
+    private Mentor mentor;
+
+    @Column
+    private String googleEventID;
+
+    public SupportRequest() {}
+
+    public SupportRequest(Long id, LocalDate requestedDate, Hackathon hackathon,
+                          User user, Team team, Mentor mentor) {
         this.id = id;
         this.requestedDate = requestedDate;
-        this.hackathonID = hackathonID;
-        this.userID = userID;
-        this.teamID = teamID;
-        this.mentorID = mentorID;
+        this.hackathon = hackathon;
+        this.user = user;
+        this.team = team;
+        this.mentor = mentor;
     }
-
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-
-    public LocalDate getRequestedDate() { return requestedDate; }
-
-    public Long getHackathonID() { return hackathonID; }
-    public void setHackathonID(Long hackathonID) { this.hackathonID = hackathonID; }
-
-    public Long getUserID() { return userID; }
-    public void setUserID(Long userID) { this.userID = userID; }
-
-    public Long getTeamID() { return teamID; }
-    public void setTeamID(Long teamID) { this.teamID = teamID; }
-
-    public Long getMentorID() { return mentorID; }
-    public void setMentorID(Long mentorID) { this.mentorID = mentorID; }
-
-    public String getGoogleEventID() { return googleEventID; }
-    public void setGoogleEventID(String googleEventID) { this.googleEventID = googleEventID; }
 }

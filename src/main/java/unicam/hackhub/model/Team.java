@@ -1,21 +1,50 @@
 package unicam.hackhub.model;
 
-import unicam.hackhub.model.observer.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+import unicam.hackhub.model.observer.HackathonObserver;
 import unicam.hackhub.model.state.*;
 
 import java.util.List;
 
+@Setter
+@Getter
+@Entity
+@Table(name = "teams")
 public class Team implements HackathonObserver {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(nullable = false)
     private String teamName;
+
+    // Relazione con User (chi "possiede" il team come riferimento)
+    @OneToOne
+    @JoinColumn(name = "user_id")
+    private User user;
+
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "submission_id")
     private Submission submission;
+
+    @ManyToOne
+    @JoinColumn(name = "hackathon_id")
+    @JsonIgnore
     private Hackathon hackathon;
+
+    @ManyToMany
+    @JoinTable(
+            name = "team_members",
+            joinColumns = @JoinColumn(name = "team_id"),
+            inverseJoinColumns = @JoinColumn(name = "user_id")
+    )
     private List<User> members;
 
-    public Team() {
-
-    }
+    public Team() {}
 
     public Team(Long id, String teamName, List<User> members) {
         this.id = id;
@@ -30,61 +59,14 @@ public class Team implements HackathonObserver {
      */
     @Override
     public void update(HackathonState newState) {
-        if (newState instanceof InProgressState) {
-            System.out.println("Team [" + teamName + "] notificato: Ora si possono aggiungere sottomissioni");
-        } else if (newState instanceof EvaluationState) {
-            System.out.println("Team [" + teamName + "] notificato: In attesa della valutazione...");
-        } else if (newState instanceof ConcludedState) {
-            System.out.println("Team [" + teamName + "] notified: Hackathon concluso, è possibile visualizzare i risultati");
-        }
+        if (newState instanceof InProgressState)
+            System.out.println("Team [" + teamName + "] notified: hackathon started.");
+        else if (newState instanceof EvaluationState)
+            System.out.println("Team [" + teamName + "] notified: submission phase ended.");
+        else if (newState instanceof ConcludedState)
+            System.out.println("Team [" + teamName + "] notified: hackathon concluded.");
     }
 
-    public int getSize() {
-        if (members == null) {
-            return 0;
-        }
-
-        return members.size();
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getTeamName() {
-        return teamName;
-    }
-
-    public List<User> getMembers() {
-        return members;
-    }
-
-    public Submission getSubmission() {
-        return submission;
-    }
-
-    public Hackathon getHackathon() {
-        return hackathon;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public void setTeamName(String teamName) {
-        this.teamName = teamName;
-    }
-
-    public void setMembers(List<User> members) {
-        this.members = members;
-    }
-
-    public void setSubmission(Submission submission) {
-        this.submission = submission;
-    }
-
-    public void setHackathon(Hackathon hackathon) {
-        this.hackathon = hackathon;
-    }
+    public int getSize() { return members == null ? 0 : members.size(); }
 
 }

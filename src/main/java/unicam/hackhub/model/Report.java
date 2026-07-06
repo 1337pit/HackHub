@@ -1,40 +1,41 @@
 package unicam.hackhub.model;
 
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
+@Setter
+@Getter
+@Entity
+@Table(name = "reports")
 public class Report {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(nullable = false)
     private String description;
+
+    @ManyToOne
+    @JoinColumn(name = "team_id", nullable = false)
     private Team team;
+
+    @ManyToOne
+    @JoinColumn(name = "mentor_id", nullable = false)
     private Mentor mentor;
+
+    @ManyToOne
+    @JoinColumn(name = "hackathon_id", nullable = false)
     private Hackathon hackathon;
 
     public Report() {}
 
-    public Report(Long id, String description, Team team,
-                           Mentor mentor, Hackathon hackathon) {
+    public Report(Long id, String description, Team team, Mentor mentor, Hackathon hackathon) {
         this.id = id;
         this.description = description;
         this.team = team;
         this.mentor = mentor;
         this.hackathon = hackathon;
     }
-
-    public Report updateReport(Report report, String description){
-        if (description == null){
-            throw new IllegalArgumentException("Description cannot be null");
-        }
-        report.setDescription(description);
-        return report;
-    }
-
-    public Long getId() { return id; }
-    public String getDescription() { return description; }
-    public Team getTeam() { return team; }
-    public Mentor getMentor() { return mentor; }
-    public Hackathon getHackathon() { return hackathon; }
-
-    public void setId(Long id) { this.id = id; }
-    public void setDescription(String description) { this.description = description; }
-    public void setTeam(Team team) { this.team = team; }
-    public void setMentor(Mentor mentor) { this.mentor = mentor; }
-    public void setHackathon(Hackathon hackathon) { this.hackathon = hackathon; }
 }

@@ -1,21 +1,14 @@
 package unicam.hackhub.repository;
 
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 import unicam.hackhub.model.Evaluation;
 import unicam.hackhub.model.Submission;
 import unicam.hackhub.model.Team;
 
 import java.util.List;
+import java.util.Optional;
 
-public interface SubmissionRepository {
-
-    public Submission findByID(Long submissionID);
-
-    public Evaluation findEvaluationByID(Long submissionID);
-
-    public Submission save(Submission entity);
-
-    public void saveAll(List<Submission> entities);
-
-    public void delete(Submission submission);
-
+@Repository
+public interface SubmissionRepository extends JpaRepository<Submission, Long> {
 }

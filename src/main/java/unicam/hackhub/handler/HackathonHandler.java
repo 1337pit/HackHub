@@ -1,10 +1,20 @@
 package unicam.hackhub.handler;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 import unicam.hackhub.model.*;
+import unicam.hackhub.model.state.ConcludedState;
+import unicam.hackhub.model.state.EvaluationState;
+import unicam.hackhub.model.state.InProgressState;
+import unicam.hackhub.model.state.RegistrationState;
 import unicam.hackhub.service.HackathonService;
-import java.util.List;
-import java.time.LocalDate;
 
+import java.time.LocalDate;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/handler/hackathons")
 public class HackathonHandler {
 
     private final HackathonService hackathonService;
@@ -15,154 +25,174 @@ public class HackathonHandler {
 
     /**
      * Gestisce la richiesta di creazione hackathon.
-     * Corrisponde al metodo createHackathon nel sequence diagram.
-     *
-     * @param name                  Nome dell'hackathon
-     * @param rulebook              Regolamento del team
-     * @param registrationDeadline  Deadline per la registrazione di un team all'hackathon
-     * @param startDate             Data inizio hackathon
-     * @param endDate               Data fine hackathon
-     * @param location              Location dell'hackathon
-     * @param prize                 Premio dell'hackathon
-     * @param state                 Stato dell'hackathon
-     * @param maxTeamSize           Numero massimo di team all'interno di un hackathon
-     * @param organizer             Organizzatore dell'hackathon
-     * @param mentorID              ID del mentore dell'hackathon
-     * @param judgeID               ID del giudice dell'hackathon
-     * @return L'hackathon creato, o null in caso di errore
      */
-    public Hackathon createHackathon(String name, String rulebook, LocalDate registrationDeadline,
-                                LocalDate startDate, LocalDate endDate, String location,
-                                String prize, HackathonState state, int maxTeamSize, Organizer organizer,
-                                Long mentorID, Long judgeID) {
+    @PostMapping
+    public ResponseEntity<Hackathon> createHackathon(@RequestBody Hackathon hackathon,
+                                                     @RequestParam Long mentorID,
+                                                     @RequestParam Long judgeID,
+                                                     @RequestParam String stateName) {
         try {
-            return hackathonService.createHackathon(name, rulebook, registrationDeadline, startDate,
-                                 endDate, location, prize, state, maxTeamSize, organizer, mentorID, judgeID);
+            HackathonState state = resolveState(stateName);
+
+            Hackathon created = hackathonService.createHackathon(
+                    hackathon.getNameHackathon(), hackathon.getRulebook(),
+                    hackathon.getRegistrationDeadline(), hackathon.getStartDate(),
+                    hackathon.getEndDate(), hackathon.getLocation(), hackathon.getPrize(),
+                    state, hackathon.getMaxTeamSize(), hackathon.getOrganizer(),
+                    mentorID, judgeID);
+            return new ResponseEntity<>(created, HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {
-            System.err.println("createHackathon error: " + e.getMessage());
-            return null;
+            return ResponseEntity.badRequest().build();
         }
     }
 
     /**
-     * Gestisce la richiesta di modifica hackathon.
-     * Corrisponde al metodo createHackathon nel sequence diagram.
-     *
-     * @param name                  Nome dell'hackathon
-     * @param rulebook              Regolamento del team
-     * @param registrationDeadline  Deadline per la registrazione di un team all'hackathon
-     * @param location              Location dell'hackathon
-     * @param prize                 Premio dell'hackathon
-     * @param maxTeamSize           Numero massimo di team all'interno di un hackathon
-     * @param judge                 Giudice dell'hackathon
-     * @param mentor                Mentore dell'hackathon
-     * @return L'hackathon modificato, o null in caso di errore
+     * Gestisce la richiesta di modifica hackathon
      */
-    public Hackathon editHackathon(Long hackathonID, String name, String rulebook, LocalDate registrationDeadline,
-                                   String location, String prize, int maxTeamSize, Judge judge, Mentor mentor) {
+    @PutMapping("/{hackathonId}")
+    public ResponseEntity<?> editHackathon(@PathVariable Long hackathonId,
+                                                   @RequestParam(required = false) String name,
+                                                   @RequestParam(required = false) String rulebook,
+                                                   @RequestParam(required = false) LocalDate registrationDeadline,
+                                                   @RequestParam(required = false) String location,
+                                                   @RequestParam(required = false) String prize,
+                                                   @RequestParam(required = false, defaultValue = "0") int maxTeamSize,
+                                                   @RequestParam(required = false) Long judgeID,
+                                                   @RequestParam(required = false) Long mentorID) {
         try {
-            return hackathonService.editHackathon(hackathonID, name, rulebook, registrationDeadline, location,
-                                                        prize, maxTeamSize, judge, mentor);
+            Hackathon edited = hackathonService.editHackathon(hackathonId, name, rulebook,
+                    registrationDeadline, location, prize, maxTeamSize, judgeID, mentorID);
+            return ResponseEntity.ok(edited);
         } catch (IllegalArgumentException e) {
-            System.err.println("editHackathon error: " + e.getMessage());
-            return null;
+            // Messaggio esposto nel body per debug, come già fatto in ReportHandler.
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+
+    /**
+     * Payload minimo per trasportare Judge e Mentor opzionali
+     * nel body di editHackathon, evitando ambiguità con i query param.
+     */
+    public record EditHackathonStaffPayload(Judge judge, Mentor mentor) {}
 
     /**
      * Gestisce la richiesta di aggiungi mentore.
-     * Corrisponde al metodo addMentor nel sequence diagram.
-     * @param email        Email dell'utente
-     * @param hackathonID  Id dell'hackathon
+     * POST /api/handler/hackathons/5/mentors?email=mentor@example.com
      */
-    public void addMentor(String email, Long hackathonID) {
+    @PostMapping("/{hackathonId}/mentors")
+    public ResponseEntity<Mentor> addMentor(@PathVariable Long hackathonId,
+                                          @RequestParam String email) {
         try {
-            hackathonService.addMentor(email, hackathonID);
+            Mentor mentor = hackathonService.addMentor(email, hackathonId);
+            return new ResponseEntity<>(mentor, HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {
-            System.err.println("addMentor error: " + e.getMessage());
+            return ResponseEntity.badRequest().build();
         }
     }
 
     /**
      * Gestisce la richiesta di visualizzazione degli hackathon
      * assegnati a un membro dello staff.
-     *
-     * @param staffMemberID ID del membro dello staff
-     * @return Lista degli hackathon assegnati, oppure null in caso di errore
+     * GET /api/handler/hackathons/staff/3
      */
-    public List<Hackathon> getAssignedHackathons(Long staffMemberID) {
+    @GetMapping("/staff/{staffMemberId}")
+    public ResponseEntity<List<Hackathon>> getAssignedHackathons(@PathVariable Long staffMemberId) {
         try {
-            return hackathonService.getAssignedHackathons(staffMemberID);
+            return ResponseEntity.ok(hackathonService.getAssignedHackathons(staffMemberId));
         } catch (IllegalArgumentException e) {
-            System.err.println("getAssignedHackathons error: " + e.getMessage());
-            return null;
+            return ResponseEntity.notFound().build();
         }
     }
 
     /**
      * Gestisce la visualizzazione dei partecipanti
      * di un hackathon assegnato al membro dello staff.
-     *
-     * @param staffMemberID ID del membro dello staff
-     * @param hackathonID ID dell'hackathon selezionato
-     * @return registrazioni contenenti team e partecipanti, oppure null
+     * GET /api/handler/hackathons/5/participants?staffMemberId=3
      */
-    public List<Registration> getParticipants(Long staffMemberID, Long hackathonID) {
+    @GetMapping("/{hackathonId}/participants")
+    public ResponseEntity<List<Registration>> getParticipants(@PathVariable Long hackathonId,
+                                                              @RequestParam Long staffMemberId) {
         try {
-            return hackathonService.getParticipants(staffMemberID, hackathonID);
+            return ResponseEntity.ok(hackathonService.getParticipants(staffMemberId, hackathonId));
         } catch (IllegalArgumentException e) {
-            System.err.println("getParticipants error: " + e.getMessage());
-            return null;
+            return ResponseEntity.notFound().build();
         }
     }
 
     /**
-     * Gestisce la dichiarazione del team vincitore
-     * Corrisponde al metodo declareWinner nel sequence diagram.
-     *
-     * @param organizerID ID dell'organizzatore
-     * @param winningTeamID ID del team vincitore
-     * @return il team vincitore
+     * Gestisce la dichiarazione del team vincitore.
+     * POST /api/handler/hackathons/winner?organizerId=1&teamId=5
      */
-    public void declareWinner(Long organizerID, Long winningTeamID) {
+    @PostMapping("/winner")
+    public ResponseEntity<Void> declareWinner(@RequestParam Long organizerId,
+                                              @RequestParam Long teamId,
+                                              @RequestParam Long hackathonId,
+                                              @RequestParam double prizeAmount) {
         try {
-            hackathonService.declareWinner(organizerID, winningTeamID);
+            hackathonService.declareWinner(organizerId, teamId, hackathonId, prizeAmount);
+            return ResponseEntity.ok().build();
         } catch (IllegalArgumentException e) {
-            System.err.println("declareWinner error: " + e.getMessage());
+            return ResponseEntity.badRequest().build();
         }
     }
 
-    public void changeState(HackathonState state) {
+    /**
+     * Gestisce il cambio dello stato dell'hackathon.
+     * HackathonState è un'interfaccia: Jackson non può deserializzarla
+     * direttamente da JSON, quindi riceviamo il nome dello stato e
+     * costruiamo l'istanza concreta lato server.
+     * PUT /api/handler/hackathons/state?stateName=InProgressState
+     */
+    @PutMapping("/state")
+    public ResponseEntity<Void> changeState(@RequestParam String stateName) {
         try {
-            hackathonService.changeState(state);
+            hackathonService.changeState(resolveState(stateName));
+            return ResponseEntity.ok().build();
         } catch (IllegalArgumentException e) {
-            System.err.println("changeState error: " + e.getMessage());
+            return ResponseEntity.badRequest().build();
         }
+    }
+
+    /**
+     * Costruisce l'istanza concreta di HackathonState a partire dal nome.
+     * Centralizza la logica usata sia da createHackathon che da changeState.
+     */
+    private HackathonState resolveState(String stateName) {
+        return switch (stateName) {
+            case "RegistrationState" -> new RegistrationState();
+            case "InProgressState" -> new InProgressState();
+            case "EvaluationState" -> new EvaluationState();
+            case "ConcludedState" -> new ConcludedState();
+            default -> throw new IllegalArgumentException("Unknown state: " + stateName);
+        };
     }
 
     /**
      * Gestisce la richiesta di consultare le sottomissioni di un hackathon.
-     * Usato nel caso d'uso "Consulta Elenco Sottomissioni" del Membro Staff.
+     * GET /api/handler/hackathons/5/submissions?staffMemberId=3
      */
-    public List<Submission> getSubmissions(Long StaffMemberID, Long hackathonID) {
+    @GetMapping("/{hackathonId}/submissions")
+    public ResponseEntity<List<Submission>> getSubmissions(@PathVariable Long hackathonId,
+                                                           @RequestParam Long staffMemberId) {
         try {
-            return hackathonService.getSubmissions(StaffMemberID, hackathonID);
+            return ResponseEntity.ok(hackathonService.getSubmissions(staffMemberId, hackathonId));
         } catch (IllegalArgumentException e) {
-            System.err.println("getSubmissions error: " + e.getMessage());
-            return null;
+            return ResponseEntity.notFound().build();
         }
     }
 
     /**
      * Gestisce la richiesta di visualizzare le richieste di supporto di un hackathon.
      * Usato nel caso d'uso "Visualizza Richieste Supporto" del Mentore.
+     * GET /api/handler/hackathons/5/support-requests?mentorId=2
      */
-    public List<SupportRequest> getRequestsSupport(Long mentorID, Long hackathonID) {
+    @GetMapping("/{hackathonId}/support-requests")
+    public ResponseEntity<List<SupportRequest>> getRequestsSupport(@PathVariable Long hackathonId,
+                                                                   @RequestParam Long mentorId) {
         try {
-            return hackathonService.getRequestsSupport(mentorID, hackathonID);
+            return ResponseEntity.ok(hackathonService.getRequestsSupport(mentorId, hackathonId));
         } catch (IllegalArgumentException e) {
-            System.err.println("getRequestsSupport error: " + e.getMessage());
-            return null;
+            return ResponseEntity.notFound().build();
         }
     }
 }

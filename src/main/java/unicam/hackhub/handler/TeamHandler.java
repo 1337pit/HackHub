@@ -1,118 +1,102 @@
 package unicam.hackhub.handler;
 
-import unicam.hackhub.model.Hackathon;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import unicam.hackhub.dto.SupportRequest;
 import unicam.hackhub.model.Report;
 import unicam.hackhub.model.Team;
 import unicam.hackhub.model.User;
 import unicam.hackhub.service.TeamService;
+import unicam.hackhub.service.UserService;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
+@RestController
+@RequestMapping("/api/teams")
 public class TeamHandler {
 
     private final TeamService teamService;
+    private final UserService userService;
 
-    public TeamHandler(TeamService teamService) {
+    public TeamHandler(TeamService teamService, UserService userService) {
         this.teamService = teamService;
-    }
-
-    /**
-     * Gestisce la richiesta di creazione team.
-     * Corrisponde al metodo createTeam nel sequence diagram.
-     *
-     * @param userID     ID dell'utente leader
-     * @param name       Nome del team
-     * @param teamUserIDs Lista degli ID degli utenti da invitare
-     * @return Il team creato, o null in caso di errore
-     */
-    public Team createTeam(Long userID, String name, List<User> teamUserIDs) {
-        try {
-            return teamService.createTeam(userID, name, teamUserIDs);
-        } catch (IllegalArgumentException e) {
-            System.err.println("createTeam error: " + e.getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * Gestisce la richiesta di eliminazione team.
-     * Corrisponde al metodo deleteTeam nel sequence diagram.
-     *
-     * @param userID     ID del memebro del team
-     * @param teamID     ID del team da eliminare
-     */
-    public void deleteTeam(Long userID, Long teamID) {
-        try {
-            teamService.deleteTeam(userID, teamID);
-        } catch (IllegalArgumentException e) {
-            System.err.println("deleteTeam error: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Gestisce la richiesta di bandire un team.
-     *
-     * @param teamID ID del team da bandire
-     */
-    public void banTeam(Long teamID) {
-        try {
-            teamService.banTeam(teamID);
-        } catch (IllegalArgumentException e) {
-            System.err.println("banTeam error: " + e.getMessage());
-        }
+        this.userService = userService;
     }
 
     /**
      * Gestisce la richiesta di segnalazione team.
-     * Corrisponde al metodo reportTeam nel sequence diagram.
-     *
-     * @param mentorID     ID del mentore
-     * @param teamID       ID del team da segnalare
-     * @param descriprion  Descrizione della segnalazione
-     * @return Il report creato, o null in caso di errore
      */
-    public Report reportTeam(Long mentorID, Long teamID, String descriprion) {
+    @PostMapping("/{teamId}/report")
+    public ResponseEntity<Report> reportTeam(@PathVariable Long teamId,
+                                             @RequestParam Long mentorId,
+                                             @RequestParam String description) {
         try {
-            return teamService.reportTeam(mentorID, teamID,descriprion);
+            Report report = teamService.reportTeam(mentorId, teamId, description);
+            return new ResponseEntity<>(report, HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {
-            System.err.println("reportTeam error: " + e.getMessage());
-            return null;
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PostMapping
+    public ResponseEntity<Team> createTeam(@RequestBody SupportRequest request) {
+        // Convertiamo la lista di ID ricevuti dal JSON in una lista di oggetti User per il Service
+        List<User> invitedUsers = new ArrayList<>();
+        if (request.invitedUserIds() != null) {
+            for (Long id : request.invitedUserIds()) {
+                try {
+                    invitedUsers.add(userService.getUser(id));
+                } catch (IllegalArgumentException e) {
+                    // Se un utente invitato non esiste, decidiamo se saltarlo o fallire.
+                    // Avendo irrobustito il service, saltarlo qui è coerente.
+                }
+            }
+        }
+
+        Team newTeam = teamService.createTeam(request.leaderId(), request.name(), invitedUsers);
+        return new ResponseEntity<>(newTeam, HttpStatus.CREATED);
+    }
+
+    /**
+     * Gestisce la richiesta di eliminazione team.
+     */
+    @DeleteMapping
+    public ResponseEntity<Void> deleteTeam(@RequestParam Long userID, @RequestParam Long teamID) {
+        try {
+            teamService.deleteTeam(userID, teamID);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
         }
     }
 
     /**
-     * Gestisce la modifica delle informazioni di un team.
-     *
-     * @param userID  ID dell'utente
-     * @param teamID  ID del team
-     * @param newName nuovo nome del team
-     * @return team modificato oppure null in caso di errore
+     * Richiede il supporto di un mentor per il team, prenotando una data.
      */
-    public Team editTeamInfo(Long userID, Long teamID, String newName) {
+    @PostMapping("/support")
+    public ResponseEntity<unicam.hackhub.model.SupportRequest> requestSupport(
+            @RequestParam Long hackathonId,
+            @RequestParam Long userId,
+            @RequestParam Long teamId,
+            @RequestParam Long mentorId,
+            @RequestParam java.time.LocalDate date) {
         try {
-            return teamService.editTeamInfo(userID, teamID, newName);
+            unicam.hackhub.model.SupportRequest request =
+                    teamService.requiresAssistance(hackathonId, userId, teamId, mentorId, date);
+            return new ResponseEntity<>(request, HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {
-            System.err.println("editTeamInfo error: " + e.getMessage());
-            return null;
+            return ResponseEntity.badRequest().build();
         }
     }
 
-    /**
-     * Gestisce la richiesta di creazione richiesta supporto.
-     * Corrisponde al metodo requiresAssistance nel sequence diagram.
-     * @param hackathonID  Id dell'hackathon
-     * @param userID  Id del membro del team
-     * @param teamID  Id del team
-     * @param mentorID  Id del mentore
-     */
-    public void requiresAssistance(Long hackathonID, Long userID, Long teamID, Long mentorID, LocalDate date) {
-        try {
-            teamService.requiresAssistance(hackathonID, userID, teamID, mentorID, date);
-        } catch (IllegalArgumentException e) {
-            System.err.println("requiresAssistance error: " + e.getMessage());
+    @GetMapping("/{id}")
+    public ResponseEntity<Team> getTeamById(@PathVariable Long id) {
+        Team team = teamService.getTeamByID(id);
+        if (team == null) {
+            return ResponseEntity.notFound().build();
         }
+        return ResponseEntity.ok(team);
     }
-
 }

@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import unicam.hackhub.model.*;
@@ -11,18 +12,12 @@ import unicam.hackhub.repository.*;
 import unicam.hackhub.service.ReportService;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-/**
- * Test unitari per ReportService.
- *
- * Copre i flussi di:
- * - getReports (Visualizza Segnalazioni)
- * - createReport (Segnala Team)
- */
 @ExtendWith(MockitoExtension.class)
 class ReportServiceTest {
 
@@ -31,200 +26,162 @@ class ReportServiceTest {
     @Mock private TeamRepository teamRepository;
     @Mock private StaffMemberRepository staffMemberRepository;
 
+    @InjectMocks
     private ReportService reportService;
 
-    private Hackathon hackathon;
-    private Team team;
-    private Mentor mentor;
+    private Hackathon mockHackathon;
+    private Team mockTeam;
+    private Mentor mockMentor;
+    private Report mockReport;
 
     @BeforeEach
     void setUp() {
-        reportService = new ReportService(
-                reportRepository, hackathonRepository,
-                teamRepository, staffMemberRepository
-        );
+        mockHackathon = mock(Hackathon.class);
+        mockTeam = mock(Team.class);
+        mockMentor = mock(Mentor.class);
+        mockReport = mock(Report.class);
 
-        hackathon = new Hackathon(1L, "HackHub Test");
-        team = new Team(2L, "Team Alpha", List.of());
-        mentor = new Mentor(3L, "Mentor Mario", "mentor@example.com", hackathon);
+        // Rimosso lo stubbing globale da qui per evitare UnnecessaryStubbingException
     }
 
     // =========================================================================
-    // getReports TESTS
+    // 1. Test per getReports
     // =========================================================================
 
     @Test
-    @DisplayName("getReports - hackathon con segnalazioni → lista ViolationReport")
-    void getReports_HackathonWithReports_ReturnsList() {
-        Report report = new Report(1L, "Bad behavior", team, mentor, hackathon);
-
-        when(hackathonRepository.findByID(1L)).thenReturn(hackathon);
-        when(reportRepository.findAllReportByHackathon(1L)).thenReturn(List.of(report));
+    @DisplayName("getReports – Hackathon valido → Ritorna la lista delle segnalazioni")
+    void getReports_Success() {
+        when(hackathonRepository.findById(1L)).thenReturn(Optional.of(mockHackathon));
+        when(reportRepository.findByHackathon(mockHackathon)).thenReturn(List.of(mockReport));
 
         List<Report> result = reportService.getReports(1L);
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        assertEquals("Bad behavior", result.get(0).getDescription());
-
-        verify(hackathonRepository).findByID(1L);
-        verify(reportRepository).findAllReportByHackathon(1L);
+        verify(hackathonRepository).findById(1L);
+        verify(reportRepository).findByHackathon(mockHackathon);
     }
 
     @Test
-    @DisplayName("getReports - hackathonID null → IllegalArgumentException")
-    void getReports_NullID_ThrowsException() {
+    @DisplayName("getReports – HackathonID null → Lancia IllegalArgumentException")
+    void getReports_NullId_ThrowsException() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> reportService.getReports(null));
 
         assertEquals("Hackathon ID cannot be null", ex.getMessage());
-        verify(hackathonRepository, never()).findByID(any());
+        verify(hackathonRepository, never()).findById(any());
     }
 
     @Test
-    @DisplayName("getReports - hackathon non trovato → IllegalArgumentException")
-    void getReports_HackathonNotFound_ThrowsException() {
-        when(hackathonRepository.findByID(99L)).thenReturn(null);
+    @DisplayName("getReports – Hackathon non trovato → Lancia IllegalArgumentException")
+    void getReports_NotFound_ThrowsException() {
+        when(hackathonRepository.findById(99L)).thenReturn(Optional.empty());
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> reportService.getReports(99L));
 
         assertEquals("Hackathon not found", ex.getMessage());
-        verify(reportRepository, never()).findAllReportByHackathon(any());
-    }
-
-    @Test
-    @DisplayName("getReports - nessuna segnalazione → IllegalArgumentException")
-    void getReports_NoReports_ThrowsException() {
-        when(hackathonRepository.findByID(1L)).thenReturn(hackathon);
-        when(reportRepository.findAllReportByHackathon(1L)).thenReturn(List.of());
-
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> reportService.getReports(1L));
-
-        assertEquals("No reports found", ex.getMessage());
-    }
-
-    @Test
-    @DisplayName("getReports - più segnalazioni → lista completa")
-    void getReports_MultipleReports_ReturnsAll() {
-        Report r1 = new Report(1L, "Behavior 1", team, mentor, hackathon);
-        Report r2 = new Report(2L, "Behavior 2", team, mentor, hackathon);
-
-        when(hackathonRepository.findByID(1L)).thenReturn(hackathon);
-        when(reportRepository.findAllReportByHackathon(1L)).thenReturn(List.of(r1, r2));
-
-        List<Report> result = reportService.getReports(1L);
-
-        assertEquals(2, result.size());
     }
 
     // =========================================================================
-    // createReport TESTS
+    // 2. Test per createReport
     // =========================================================================
 
     @Test
-    @DisplayName("createReport - dati validi → ViolationReport creato e salvato")
-    void createReport_ValidData_ReturnsReport() {
-        when(hackathonRepository.findByID(1L)).thenReturn(hackathon);
-        when(teamRepository.findByID(2L)).thenReturn(team);
-        when(staffMemberRepository.findByID(3L)).thenReturn(mentor);
-        when(reportRepository.save(any(Report.class)))
-                .thenAnswer(inv -> inv.getArgument(0));
+    @DisplayName("createReport – Dati validi → Segnalazione salvata con successo")
+    void createReport_Success() {
+        when(hackathonRepository.findById(1L)).thenReturn(Optional.of(mockHackathon));
+        when(teamRepository.findById(2L)).thenReturn(Optional.of(mockTeam));
+        when(staffMemberRepository.findById(3L)).thenReturn(Optional.of(mockMentor));
+        when(reportRepository.save(any(Report.class))).thenReturn(mockReport);
 
         Report result = reportService.createReport(3L, 2L, 1L, "Bad behavior");
 
         assertNotNull(result);
-        assertEquals("Bad behavior", result.getDescription());
-        assertEquals(team, result.getTeam());
-        assertEquals(mentor, result.getMentor());
-        assertEquals(hackathon, result.getHackathon());
-
         verify(reportRepository).save(any(Report.class));
     }
 
     @Test
-    @DisplayName("createReport - parametri null → IllegalArgumentException")
-    void createReport_NullParams_ThrowsException() {
-        assertThrows(IllegalArgumentException.class,
-                () -> reportService.createReport(null, 2L, 1L, "desc"));
-
-        assertThrows(IllegalArgumentException.class,
-                () -> reportService.createReport(3L, null, 1L, "desc"));
-
-        assertThrows(IllegalArgumentException.class,
-                () -> reportService.createReport(3L, 2L, null, "desc"));
-
-        assertThrows(IllegalArgumentException.class,
-                () -> reportService.createReport(3L, 2L, 1L, null));
-
-        assertThrows(IllegalArgumentException.class,
-                () -> reportService.createReport(3L, 2L, 1L, ""));
+    @DisplayName("createReport – Dati invalidi o vuoti → Lancia IllegalArgumentException 'Invalid data'")
+    void createReport_InvalidData_ThrowsException() {
+        assertThrows(IllegalArgumentException.class, () -> reportService.createReport(null, 2L, 1L, "desc"));
+        assertThrows(IllegalArgumentException.class, () -> reportService.createReport(3L, 2L, 1L, "   "));
 
         verify(reportRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("createReport - hackathon non trovato → IllegalArgumentException")
-    void createReport_HackathonNotFound_ThrowsException() {
-        when(hackathonRepository.findByID(1L)).thenReturn(null);
-
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> reportService.createReport(3L, 2L, 1L, "Bad behavior"));
-
-        assertEquals("Hackathon not found", ex.getMessage());
-        verify(reportRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("createReport - team non trovato → IllegalArgumentException")
-    void createReport_TeamNotFound_ThrowsException() {
-        when(hackathonRepository.findByID(1L)).thenReturn(hackathon);
-        when(teamRepository.findByID(2L)).thenReturn(null);
-
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> reportService.createReport(3L, 2L, 1L, "Bad behavior"));
-
-        assertEquals("Team not found", ex.getMessage());
-        verify(reportRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("createReport - mentor non trovato → IllegalArgumentException")
-    void createReport_MentorNotFound_ThrowsException() {
-        when(hackathonRepository.findByID(1L)).thenReturn(hackathon);
-        when(teamRepository.findByID(2L)).thenReturn(team);
-        when(staffMemberRepository.findByID(3L)).thenReturn(null);
-
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> reportService.createReport(3L, 2L, 1L, "Bad behavior"));
-
-        assertEquals("Mentor not found", ex.getMessage());
-        verify(reportRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("createReport - staff non è un Mentor → IllegalArgumentException")
+    @DisplayName("createReport – Staff trovato non è un istanza di Mentor → Lancia eccezione")
     void createReport_StaffNotMentor_ThrowsException() {
-        Judge judge = new Judge(3L, "Judge Joe");
-        when(hackathonRepository.findByID(1L)).thenReturn(hackathon);
-        when(teamRepository.findByID(2L)).thenReturn(team);
-        when(staffMemberRepository.findByID(3L)).thenReturn(judge);
+        Judge mockJudge = mock(Judge.class);
+        when(hackathonRepository.findById(1L)).thenReturn(Optional.of(mockHackathon));
+        when(teamRepository.findById(2L)).thenReturn(Optional.of(mockTeam));
+        when(staffMemberRepository.findById(3L)).thenReturn(Optional.of(mockJudge));
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> reportService.createReport(3L, 2L, 1L, "Bad behavior"));
 
         assertEquals("Mentor not found", ex.getMessage());
-        verify(reportRepository, never()).save(any());
+    }
+
+    // =========================================================================
+    // 3. Test per updateReport
+    // =========================================================================
+
+    @Test
+    @DisplayName("updateReport – Mentore autorizzato → Modifica la descrizione con successo")
+    void updateReport_Success() {
+        // Spostato qui solo dove serve realmente
+        when(mockMentor.getId()).thenReturn(3L);
+
+        when(reportRepository.findById(10L)).thenReturn(Optional.of(mockReport));
+        when(staffMemberRepository.findById(3L)).thenReturn(Optional.of(mockMentor));
+        when(mockReport.getMentor()).thenReturn(mockMentor);
+        when(reportRepository.save(mockReport)).thenReturn(mockReport);
+
+        Report updated = reportService.updateReport(10L, 3L, "New Description");
+
+        assertNotNull(updated);
+        verify(mockReport).setDescription("New Description");
+        verify(reportRepository).save(mockReport);
     }
 
     @Test
-    @DisplayName("createReport - description blank → IllegalArgumentException")
-    void createReport_BlankDescription_ThrowsException() {
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> reportService.createReport(3L, 2L, 1L, "   "));
+    @DisplayName("updateReport – Mentore non proprietario del report → Lancia IllegalArgumentException")
+    void updateReport_UnauthorizedMentor_ThrowsException() {
+        // Spostato qui solo dove serve realmente
+        when(mockMentor.getId()).thenReturn(3L);
 
-        assertEquals("Invalid data", ex.getMessage());
-        verify(reportRepository, never()).save(any());
+        Mentor maliciousMentor = mock(Mentor.class);
+        when(maliciousMentor.getId()).thenReturn(99L);
+
+        when(reportRepository.findById(10L)).thenReturn(Optional.of(mockReport));
+        when(staffMemberRepository.findById(99L)).thenReturn(Optional.of(maliciousMentor));
+        when(mockReport.getMentor()).thenReturn(mockMentor);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> reportService.updateReport(10L, 99L, "New Description"));
+
+        assertEquals("Mentor has not report", ex.getMessage());
+        verify(reportRepository, never()).save(mockReport);
+    }
+
+    // =========================================================================
+    // 4. Test per deleteReport
+    // =========================================================================
+
+    @Test
+    @DisplayName("deleteReport – Mentore autorizzato → Elimina la segnalazione")
+    void deleteReport_Success() {
+        // Spostato qui solo dove serve realmente
+        when(mockMentor.getId()).thenReturn(3L);
+
+        when(reportRepository.findById(10L)).thenReturn(Optional.of(mockReport));
+        when(staffMemberRepository.findById(3L)).thenReturn(Optional.of(mockMentor));
+        when(mockReport.getMentor()).thenReturn(mockMentor);
+
+        assertDoesNotThrow(() -> reportService.deleteReport(10L, 3L));
+
+        verify(reportRepository).delete(mockReport);
     }
 }

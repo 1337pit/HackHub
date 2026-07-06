@@ -31,8 +31,3 @@ build/
 
 ### VS Code ###
 .vscode/
-
-### Credenziali Google OAuth ###
-client_secret*.json
-tokens/
-src/test/resources/credentials.json

@@ -1,22 +1,13 @@
 package unicam.hackhub.repository;
 
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 import unicam.hackhub.model.*;
 
 import java.util.List;
+import java.util.Optional;
 
-public interface StaffMemberRepository {
-
-    public Mentor getMentor(Long mentorID);
-
-    public Judge getJudge(Long judgeID);
-
-    public Organizer getOrganizer(Long organizerID);
-
-    public StaffMember findByID(Long staffMemberID);
-
-    public StaffMember save(StaffMember entity);
-
-    public void saveAll(List<StaffMember> entities);
-
-    public StaffMember getStaff(User user);
+@Repository
+public interface StaffMemberRepository extends JpaRepository<StaffMember, Long> {
+    Optional<StaffMember> findByEmail(String email);
 }

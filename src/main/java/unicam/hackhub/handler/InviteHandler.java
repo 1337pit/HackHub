@@ -1,12 +1,13 @@
 package unicam.hackhub.handler;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 import unicam.hackhub.model.Invite;
-import unicam.hackhub.model.Report;
-import unicam.hackhub.model.User;
 import unicam.hackhub.service.InviteService;
 
-import java.util.List;
-
+@RestController
+@RequestMapping("/api/handler/invites")
 public class InviteHandler {
 
     private final InviteService inviteService;
@@ -15,46 +16,39 @@ public class InviteHandler {
         this.inviteService = inviteService;
     }
 
-    /**
-     * Gestisce la richiesta di creazione invito
-     * Usato nel caso d'uso "Invita al Team" del Membro del Team
-     * @param teamID        ID del team
-     * @param invitedUser   Utente da invitare nel team
-     * @return L'invito creato
-     */
-    public Invite createInvite(Long teamID, User invitedUser){
+    @PostMapping("/send")
+    public ResponseEntity<Void> sendInvite(@RequestBody Invite invite) {
+        if (invite == null || invite.getTeam() == null || invite.getInvitedUser() == null) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        inviteService.createInvite(invite.getTeam().getId(), invite.getInvitedUser());
+        return new ResponseEntity<>(HttpStatus.CREATED);
+    }
+
+    @PostMapping("/accept")
+    public ResponseEntity<Void> acceptInvite(@RequestBody Invite invite) {
+        if (invite == null || invite.getId() == null) {
+            return ResponseEntity.badRequest().build();
+        }
         try {
-            return inviteService.createInvite(teamID, invitedUser);
+            inviteService.acceptInvite(invite.getId());
+            return ResponseEntity.ok().build();
         } catch (IllegalArgumentException e) {
-            System.err.println("createInvite error: " + e.getMessage());
-            return null;
+            return ResponseEntity.badRequest().build();
         }
     }
 
-    /**
-     * Gestiche la richiesta di accettazione invito
-     * Usato nel caso d'uso "Risponde all'Invito" dell'Utente
-     * @param inviteID  Id dell'invito accettato
-     */
-    public void acceptInvite(Long inviteID){
+    @PostMapping("/decline")
+    public ResponseEntity<Void> declineInvite(@RequestBody Invite invite) {
+        if (invite == null || invite.getId() == null) {
+            return ResponseEntity.badRequest().build();
+        }
         try {
-            inviteService.acceptInvite(inviteID);
-        }  catch (IllegalArgumentException e) {
-            System.err.println("acceptInvite error: " + e.getMessage());
+            inviteService.declineInvite(invite.getId());
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
         }
     }
-
-    /**
-     * Gestiche la richiesta di rifiuto invito
-     * Usato nel caso d'uso "Risponde all'Invito" dell'Utente
-     * @param inviteID  Id dell'invito rifiutato
-     */
-    public void declineInvite(Long inviteID){
-        try {
-            inviteService.declineInvite(inviteID);
-        }   catch (IllegalArgumentException e) {
-            System.err.println("declineInvite error: " + e.getMessage());
-        }
-    }
-
 }

@@ -1,52 +1,53 @@
 package unicam.hackhub.handler;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 import unicam.hackhub.model.Registration;
 import unicam.hackhub.model.Team;
 import unicam.hackhub.model.User;
 import unicam.hackhub.service.RegistrationService;
-import unicam.hackhub.service.TeamService;
+import unicam.hackhub.service.UserService;
 
+@RestController
+@RequestMapping("/api/registrations")
 public class RegistrationHandler {
 
     private final RegistrationService registrationService;
+    private final UserService userService;
 
-    public RegistrationHandler(RegistrationService registrationService) {
+    public RegistrationHandler(RegistrationService registrationService, UserService userService) {
         this.registrationService = registrationService;
+        this.userService = userService;
     }
 
-    /**
-     * Gestisce la richiesta di registrazione di un team ad un hackathon.
-     * Corrisponde al metodo registerTeamToHackathon nel sequence diagram.
-     *
-     * @param hackathonID     ID dell'hackathon
-     * @param userID          ID dell'utente
-     * @return La registrazione, o null in caso di errore
-     */
-    public Registration registerTeam(Long hackathonID, Long userID) {
+    @PostMapping("/register")
+    public ResponseEntity<Registration> registerTeam(@RequestParam Long hackathonId, @RequestParam Long userId) {
         try {
-            return registrationService.registerTeam(hackathonID, userID);
+            Registration registration = registrationService.registerTeam(hackathonId, userId);
+            return new ResponseEntity<>(registration, HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {
-            System.err.println("registerTeam error: " + e.getMessage());
-            return null;
+            return ResponseEntity.badRequest().build();
         }
     }
 
-    public Registration getRegistration(Long teamID) {
-        try {
-            return registrationService.getRegistration(teamID);
-        } catch (IllegalArgumentException e) {
-            System.err.println("getRegistration error: " + e.getMessage());
-            return null;
+    @GetMapping("/team/{teamId}")
+    public ResponseEntity<Registration> getRegistration(@PathVariable Long teamId) {
+        Registration registration = registrationService.getRegistration(teamId);
+        if (registration == null) {
+            return ResponseEntity.notFound().build();
         }
+        return ResponseEntity.ok(registration);
     }
 
-    public Team getTeamByUser(User user) {
-        try {
-            return registrationService.getTeamByUser(user);
-        } catch (IllegalArgumentException e) {
-            System.err.println("getTeamByUser error: " + e.getMessage());
-            return null;
-        }
-    }
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<Team> getTeamByUser(@PathVariable Long userId) {
+        User user = userService.getUser(userId);
 
+        Team team = registrationService.getTeamByUser(user);
+        if (team == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(team);
+    }
 }
